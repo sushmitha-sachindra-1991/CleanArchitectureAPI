@@ -1,0 +1,128 @@
+﻿using ExtModule.API.Application.Factory;
+using ExtModule.API.Application.Interfaces;
+using ExtModule.API.Core.ERP;
+using ExtModule.API.Infrastructure.Repositories;
+using ExtModule.API.Model.DataRequest;
+using Microsoft.AspNetCore.Mvc;
+using ExtModule.API.Logging;
+using log4net;
+using log4net.Config;
+
+namespace ExtModule.API.Controllers
+{
+    [ApiController]
+    public class F8APIController : ControllerBase
+    {
+        private readonly IERPRepository _repositoryERP;
+        private IWebHostEnvironment Environment;
+        private IConfiguration configuration { get; set; }
+        public F8APIController(IERPRepository repositoryERP, IWebHostEnvironment environment, IConfiguration configuration)
+        {
+            _repositoryERP = repositoryERP;
+            Environment = environment;
+            this.configuration = configuration;
+        }
+
+        #region InterCompanyPostBySP
+        /// <summary>
+        /// InterCompanyPostBySP
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [Route("api/{type}/F8API/InterCompanyPostBySP")]
+ 
+        public async Task<FocusPostResponse<F8API.PostResponse>> InterCompanyPostBySP(FocusAPIInputBySP obj, string type)
+        {
+            FocusPostResponse<F8API.PostResponse> res = new FocusPostResponse<F8API.PostResponse>();
+            string fileName = type + "_" + obj.CompId;
+            try
+            {
+                if (!string.IsNullOrEmpty(obj.CompId))
+                {
+                    // Hashtable Param = JsonConvert.DeserializeObject<Hashtable>(obj.Param);
+                    res = await _repositoryERP.InterCompanyPostingByStoredProcedureVoucherWise(obj.SPName,obj.Param,obj.SessionId,obj.CompId);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError(fileName, ex.Message, ex);
+                res.sMessage = ex.Message;
+                res.status = 0;
+            }
+
+
+            return res;
+        }
+        #endregion
+
+        #region PostToJVBySP
+        /// <summary>
+        /// InterCompanyPostBySP
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [Route("api/{type}/F8API/PostToJVBySP")]
+
+        public async Task<FocusPostResponse<F8API.PostResponse>> PostToJVBySP(FocusAPIInputBySP obj, string type)
+        {
+            FocusPostResponse<F8API.PostResponse> res = new FocusPostResponse<F8API.PostResponse>();
+            
+            string fileName = type + "_" + obj.CompId;
+            string baseFocusAPIUrl = configuration.GetValue<string>("AppSettings:FocusAPI");
+            try
+            {
+                if (!string.IsNullOrEmpty(obj.CompId))
+                {                    
+                    res = await _repositoryERP.PostToJVByStoredProcedureVoucherWise(obj.SPName, obj.Param, obj.SessionId, obj.CompId, baseFocusAPIUrl);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError(fileName, ex.Message, ex);                           
+                res.sMessage = ex.Message;
+                res.status = 0;  
+            }
+            return res;
+        }
+        #endregion
+
+        #region DeleteVoucher
+        /// <summary>
+        /// DeleteVoucher
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        [HttpPost]
+        [Route("api/{type}/F8API/DeleteVoucher")]
+
+        public async Task<FocusPostResponse<F8API.PostResponse>> DeleteVoucher(DeleteVoucher obj, string type)
+        {
+            FocusPostResponse<F8API.PostResponse> res = new FocusPostResponse<F8API.PostResponse>();
+
+            string fileName = type + "_" + obj.CompId;
+            string baseFocusAPIUrl = configuration.GetValue<string>("AppSettings:FocusAPI");
+            try
+            {
+                if (!string.IsNullOrEmpty(obj.CompId))
+                {
+                    res = await _repositoryERP.DeleteVoucher(obj.iVoucherType, obj.sVoucherNo, obj.SessionId, baseFocusAPIUrl);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError(fileName, ex.Message, ex);
+                res.sMessage = ex.Message;
+                res.status = 0;
+            }
+            return res;
+        }
+        #endregion
+    }
+}
