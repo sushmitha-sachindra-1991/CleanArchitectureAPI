@@ -28,16 +28,16 @@ builder.Services.RegisterServices();
 
 builder.Services.AddEndpointsApiExplorer();
 
-//builder.Services.AddSwaggerGen(c =>
-//{
-//    //c.IncludeXmlComments(string.Format(@"{0}\ExtModule.API.xml", System.AppDomain.CurrentDomain.BaseDirectory));
-//    c.SwaggerDoc("v1", new OpenApiInfo
-//    {
-//        Version = "v1",
-//        Title = "ExtModule.API",
-//    });
-//});
-//builder.Services.AddControllers().AddNewtonsoftJson();
+builder.Services.AddSwaggerGen(c =>
+{
+    //c.IncludeXmlComments(string.Format(@"{0}\ExtModule.API.xml", System.AppDomain.CurrentDomain.BaseDirectory));
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "ExtModule.API",
+    });
+});
+builder.Services.AddControllers().AddNewtonsoftJson();
 
 
 var app = builder.Build();
