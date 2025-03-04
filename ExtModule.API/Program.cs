@@ -5,13 +5,61 @@ using ExtModule.API.Core;
 using ExtModule.API.Infrastructure;
 using ExtModule.API.Infrastructure.Repositories;
 using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using log4net.Config;
 using log4net;
 using ExtModule.API;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+
+using AutoMapper;
+using System.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var configuration = builder.Configuration;
+//add authentication
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = configuration["Jwt:Issuer"],
+        ValidAudience = configuration["Jwt:Audience"],
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Key"]))
+    };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = ctx =>
+        {
+            ctx.Request.Cookies.TryGetValue("accessToken", out var accessToken);
+            if (!string.IsNullOrEmpty(accessToken))
+            {
+                ctx.Token = accessToken;
+
+            }
+            return Task.CompletedTask;
+        }
+    };
+    
+});
+
+builder.Services.Configure<CookiePolicyOptions>(options => { options.CheckConsentNeeded = context => true; options.MinimumSameSitePolicy = SameSiteMode.Strict; });
+
+builder.Services.AddAuthorization();
+
 
 // Add services to the container.
 
@@ -23,7 +71,8 @@ XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 //Injecting services.
 builder.Services.RegisterServices();
 
-
+//add dto class mapper
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
 
 
 builder.Services.AddEndpointsApiExplorer();
@@ -58,7 +107,9 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 // Configure the HTTP request pipeline.
 app.UseHttpsRedirection();
 
-//app.UseAuthorization();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseCookiePolicy();
 
 app.MapControllers();
 

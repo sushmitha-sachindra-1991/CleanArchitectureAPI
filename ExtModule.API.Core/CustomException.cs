@@ -13,6 +13,7 @@ namespace ExtModule.API.Core
                 : base(message, innerException)
             {
             }
+
         
     }
     

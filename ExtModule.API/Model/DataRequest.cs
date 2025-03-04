@@ -19,6 +19,21 @@ namespace ExtModule.API.Model.DataRequest
         public string CompId { get; set; }
         public string[]? Ordercolumn { get; set; } = default;
     }
+    public class DbCallScalarFunctionInput
+    {
+        public string FuncName { get; set; }
+       
+        public string CompId { get; set; }
+       
+    }
+    public class DbCallTableFunctionInput
+    {
+        public string FuncName { get; set; }
+        public string[] Columns { get; set; }//coulm seperated by comma
+        public string? Condition { get; set; } = default;
+        public string CompId { get; set; }
+
+    }
     public class DbCallAddToTableInput
     {
         public string sTableName { get; set; }
@@ -89,5 +104,24 @@ namespace ExtModule.API.Model.DataRequest
         public string SessionId { get; set; }
         public string CompId { get; set; }
 
+    }
+    public class SendEmailInput
+    {
+        public string sFrom { get; set; }
+        public string sPassword { get; set; }
+        public string[] sTo { get; set; }
+        public string[] sCC { get; set; }
+        public string[] sBCC { get; set; }
+        public string sSubject { get; set; }
+        public string sBody { get; set; }
+        public string[] sAttachments { get; set; }
+        public string SMPT_Host { get; set; }
+        public int SMPT_Port { get; set; }
+        public string CompId { get; set; }
+    }
+    public class SendEmailInputTest
+    {
+   
+        public string CompId { get; set; }
     }
 }

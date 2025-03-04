@@ -31,6 +31,22 @@ Content-Type: application/json
   
 }
 
+### GetDataView
+POST {{ExtModule.API_HostAddress}}/api/ERP/Data/GetDataByView
+Content-Type: application/json
+Authorization:Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoic3UiLCJleHAiOjE3MzY5MjYxMDUsImlzcyI6Imh0dHA6Ly9sb2NhbGhvc3QiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0In0.BCIr6YcpICM5zxmFXuLGyF00i9eBjvKXyJSXz7GfHew
+
+{
+    "compId":"684",
+    // "sql": "xsp_GetAllFixedAsset '13', '','',''",
+    "Columns":[
+        "iheaderid","sname"
+    ],
+    "Condition":"iHeaderId=2",
+    "ViewName":"xv_getshipmentdata"
+  
+}
+
 ### PostToJV
 POST {{ExtModule.API_HostAddress}}/api/ERP/F8API/PostToJVBySP
 Content-Type: application/json
@@ -50,6 +66,24 @@ Content-Type: application/json
     ,"ActionType":2
   }
 }
+
+### Login
+POST {{ExtModule.API_HostAddress}}/api/Auth/LoginBySession
+Content-Type: application/json
+
+{
+  "SessionId":"030^040320251357445821081",
+  "CompanyCode":"030"
+}
+
+### SendEmail
+POST  {{ExtModule.API_HostAddress}}/api/ERP/Data/SendEmailTest
+Content-Type:application/json
+
+{
+   "compId": "108"
+}
+
 # {
 # "spName": "xsp_UpdateDataProjTransfer",
 #   "compId": 180,
@@ -65,3 +99,4 @@ Content-Type: application/json
 #     ,"ActionType":2
 #   }
 # }
+

@@ -12,6 +12,8 @@ using System.Threading.Tasks;
 using System.Xml;
 using ExtModule.API.Application.Interfaces;
 using System.Data.SqlClient;
+using System.Net.Mail;
+using System.Net;
 
 namespace ExtModule.API.Infrastructure.Repositories
 {
@@ -120,7 +122,22 @@ namespace ExtModule.API.Infrastructure.Repositories
             return await Task.FromResult(retval);
 
         }
+        public async Task<string> GetScalarByFunc(string FunctionName, string CompId)
+        {
+            var result = "";
+            try
+            {
+                string text = "";
+                text = "select dbo." + FunctionName;
+                result = GetScalarByQuery(text, CompId);
+            }
+            catch (Exception err)
+            {
+                //ErrLog(err, "DevLib.GetTableNameOfTag()");
+            }
 
+            return await Task.FromResult(result);
+        }
         public async Task<DataTable> GetMasterData(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns)
         {
             var dt = new DataTable();
@@ -156,7 +173,43 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             return dt;
         }
+        public async Task<DataTable> GetMasterData_M(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns)
+        {
+            var dt = new DataTable();
+            string conString = GetConnectionString(CompId);
 
+            SqlConnection con = new SqlConnection(conString);
+
+            try
+            {
+                string text = "Select " + string.Join(",", Columns) + " From " + GetTableNameOfTag_m(iMasterTypeId, CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
+                if (!string.IsNullOrEmpty(Condition))
+                {
+                    text = text + " and " + Condition;
+                }
+                if (OrderColoumns != null)
+                {
+                    text = text + " order by " + string.Join(",", OrderColoumns);
+                }
+
+                dt = GetDataTableByQuery(text, CompId);
+                if (dt.Rows.Count > 0)
+                {
+                    return dt;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("GetMasterData", ex);
+            }
+            finally
+            {
+                con.Close();
+                con.Dispose();
+            }
+            return dt;
+        }
         public async Task<string> InsertByStoredProcedure(string spName, Hashtable Params, string CompId)
         {
             string retval = "";
@@ -536,7 +589,233 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             return dt;
         }
+        #region Email
+        /// <summary>
+        /// Send Email
+        /// </summary>
+
+        /// <param name="To">To sloginuserName [string array]</param>
+        /// <param name="Cc">Cc sloginuserName [string array]</param>
+        /// <param name="Bcc">BCc sloginuserName [string array]</param>
+        /// <param name="Subject">Subject</param>
+        /// <param name="Body">Body</param>
+        /// <param name="Attachment">Attachment give physical path [string array]</param>
+        /// <param name="SMPT_Host">SMPT Host, set "" to get value from Preferences </param>
+        /// <param name="SMPT_Port">SMPT Port, set 0 to get value from Preferences </param>
+        /// <returns>Return status,message as hashtable</returns>
+        public async Task<Hashtable> SendEmail(string From,string Password,string[] To, string[] Cc, string[] Bcc, string Subject, string Body, string[] Attachment, string SMPT_Host, int SMPT_Port, string CompId = "")
+        {
+
+            Hashtable response = new Hashtable();
+            try
+            {
+                if (SMPT_Port == 0)
+                {
+                    SMPT_Port = 587;
+                }
+                if (SMPT_Host == "")
+                {
+                    SMPT_Host = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 0", CompId);
+                }
+
+                if (SMPT_Host == "")
+                {
+                    response["status"] = 0;
+                    response["Message"] = "SMTP Address not defined";
+
+
+                    return response;
+                }
+                //GetCompany details
+                //string sCompanyName = GetScalarByQuery("select sCompanyName from Focus8ERP.dbo.mcore_company where iCompanyId=" + CompId, CompId);
+                //Hashtable obj = GetCompanyDetails(sCompanyName);
+                //string From = (string)obj["FromEmailId"];
+                //string Password = (string)obj["FromPassword"];
+                if (From == "")
+                {
+                    From = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 1", CompId);
+                }
+                if (Password == "")
+                {
+                    Password = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 2", CompId);
+                }
+
+
+
+                // '''''''''''''''''''''''''''''''''''''''''Sending Mail''''''''''''''''''''''''''''''''
+                // sendMail()
+
+                MailMessage mail = new MailMessage();
+
+
+                mail.From = new MailAddress(From);
+
+                if (To.Length == 0)
+                {
+
+                    response["status"] = 0;
+                    response["Message"] = "To Email ID not defined";
+                    return response;
+
+                }
+
+                foreach (string s in To)
+                {
+                    if (s.Trim() != "")
+                    {
+                        string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
+                        mail.To.Add(new MailAddress(sEmail));
+                    }
+                }
+
+                foreach (string s in Cc)
+                {
+                    if (s.Trim() != "")
+                    {
+                        string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
+                        mail.CC.Add(new MailAddress(sEmail));
+                    }
+                }
+
+                foreach (string s in Bcc)
+                {
+                    if (s.Trim() != "")
+                    {
+                        string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
+                        mail.Bcc.Add(new MailAddress(sEmail));
+                    }
+                }
+
+                // ''''''''''''''''''''''''''''''Email Subject''''''''''''''''''''''''''''''''''''''''
+                if ((Subject == ""))
+                {
+                    mail.Subject = " ";
+                }
+                else
+                {
+                    mail.Subject = Subject;
+                }
+
+                // ''''''''''''''''''''''''''''''Email Body''''''''''''''''''''''''''''''''''''''''
+
+                if (Body == "")
+                {
+                    mail.Body = " ";
+                }
+                else
+                {
+                    mail.Body = Body;
+                }
+
+                // ''''''''''''''''''''''''''''''Email Attachment'''''''''''''''''''''''''
+                foreach (string s in Attachment)
+                {
+                    if (s != "")
+                    {
+                        mail.Attachments.Add(new Attachment(s));
+                    }
+                }
+
+
+                using (SmtpClient mailClient = new SmtpClient())
+                {
+                    mailClient.Host = SMPT_Host;
+                    mailClient.Port = SMPT_Port;
+                    mailClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    mailClient.UseDefaultCredentials = false;
+                    mailClient.Credentials = new NetworkCredential(From, Password);
+                    mailClient.EnableSsl = true;
+                    mail.DeliveryNotificationOptions = DeliveryNotificationOptions.OnFailure;
+                    mailClient.Send(mail);
+                    response["status"] = 1;
+                    response["message"] = "Email sent Successfully";
+                    return response;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                response["status"] = 0;
+                response["message"] = ex.Message;
+
+            }
+            return response;
+        }
+        #endregion
+        #region Email Test
+        public async Task<Hashtable> SendEmailTest(string CompId = "")
+        {
+
+            Hashtable response = new Hashtable();
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+                                | SecurityProtocolType.Tls11
+                                | SecurityProtocolType.Tls12;
+            //test
+            using (var message = new MailMessage())
+            {
+                message.To.Add(new MailAddress("sushmi46@gmail.com", "sushmita"));
+                message.From = new MailAddress("infofocusextdevfocus@gmail.com", "info_focus_ext_dev");
+                message.Subject = "My subject";
+                message.Body = "My message";
+                message.IsBodyHtml = false; // change to true if body msg is in html
+
+                using (var client = new SmtpClient("smtp.gmail.com"))
+                {
+                    client.UseDefaultCredentials = false;
+                    client.Port = 465;
+                    client.Credentials = new NetworkCredential("infofocusextdevfocus@gmail.com", "focus@1234");
+                    client.EnableSsl = true;
+
+                    try
+                    {
+                        await client.SendMailAsync(message); // Email sent
+                    }
+                    catch (Exception e)
+                    {
+                        response["status"] = 0;
+                        response["message"] = e.Message;
+                    }
+                }
+            }
+            return response;
+        }
+        #endregion
         #region Common functions
+        public Hashtable GetCompanyDetails(string company)
+        {
+            Hashtable obj = new Hashtable();
+            try
+            {
+                if (!string.IsNullOrEmpty(company))
+                {
+                    //  company = company.Replace("&", "and");
+                    XmlDocument doc = new XmlDocument();
+                    string strPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase);  //System.IO.Directory.GetCurrentDirectory();
+
+                    doc.Load(strPath + @"\CompanyDetails.xml");
+
+                    foreach (XmlNode comp in doc.SelectNodes("Company"))
+                    {
+                        string name = comp.SelectSingleNode("Name").InnerText;
+                        if (name == company)
+                        {
+                            obj.Add("FromEmailId", comp.SelectSingleNode("ExtDailyAttd_EmailUserName").InnerText);
+                            obj.Add("FromPassword", comp.SelectSingleNode("ExtDailyAttd_EmailPassword").InnerText);
+
+                            return obj;
+                        }
+                    }
+
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return obj;
+        }
         public string GetConnectionString(string CompId)
         {
             string constring = "";
@@ -573,6 +852,22 @@ namespace ExtModule.API.Infrastructure.Repositories
             {
                 sqlConnection.Close();
                 sqlConnection.Dispose();
+            }
+
+            return result;
+        }
+        private string GetTableNameOfTag_m(int iMasterTypeId, string CompId, string connString = "")
+        {
+            string result = "";
+            try
+            {
+                string text = "";
+                text = "Select 'vm' + sModule +'_' + sMasterName [TableName] From cCore_MasterDef Where iMasterTypeId = " + Convert.ToString(iMasterTypeId);
+                result = GetScalarByQuery(text, CompId);
+            }
+            catch (Exception err)
+            {
+                //ErrLog(err, "DevLib.GetTableNameOfTag()");
             }
 
             return result;

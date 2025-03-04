@@ -22,6 +22,10 @@ using ExtModule.API.Core;
 using Newtonsoft.Json;
 using static ExtModule.API.Infrastructure.Repositories.RepositoryERP.Focus8API;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using Microsoft.Extensions.Logging;
+using System.Net.Mail;
+using static ExtModule.API.Core.CRM;
+using System.Xml;
 
 namespace ExtModule.API.Infrastructure.Repositories
 {
@@ -31,7 +35,7 @@ namespace ExtModule.API.Infrastructure.Repositories
         {
             var dt = new DataTable();
             string conString = GetConnectionString(CompId);
-
+          
             SqlConnection con = new SqlConnection(conString);
 
             try
@@ -99,7 +103,6 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             return ds;
         }
-
         public async Task<string> GetScalarByStoredProcedure(string spName, Hashtable Params, string CompId)
         {
             string retval= "" ;
@@ -132,7 +135,6 @@ namespace ExtModule.API.Infrastructure.Repositories
             return await Task.FromResult(retval);
 
         }
-
         public async Task<DataTable> GetDataTableByView(string ViewName, string[] Columns,string Condition, string[] OrderColoumns, string CompId)
         {
             var dt = new DataTable();
@@ -213,6 +215,7 @@ namespace ExtModule.API.Infrastructure.Repositories
                 {
                     return dt;
                 }
+               
             }
             catch (Exception ex)
             {
@@ -225,7 +228,59 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             return dt;
         }
+        public async Task<DataTable> GetMasterData_M(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns)
+        {
+            var dt = new DataTable();
+            string conString = GetConnectionString(CompId);
 
+            SqlConnection con = new SqlConnection(conString);
+
+            try
+            {
+                string text = "Select " + string.Join(",", Columns) + " From " + GetTableNameOfTag_m(iMasterTypeId, CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
+                if (!string.IsNullOrEmpty(Condition))
+                {
+                    text = text + " and " + Condition;
+                }
+                if (OrderColoumns != null)
+                {
+                    text = text + " order by " + string.Join(",", OrderColoumns);
+                }
+
+                dt = GetDataTableByQuery(text, CompId);
+                if (dt.Rows.Count > 0)
+                {
+                    return dt;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("GetMasterData", ex);
+            }
+            finally
+            {
+                con.Close();
+                con.Dispose();
+            }
+            return dt;
+        }
+        public async Task<string> GetScalarByFunc(string FunctionName, string CompId)
+        {
+            var result = "";
+            try
+            {
+                string text = "";
+                text = "select dbo."+FunctionName;
+                result = GetScalarByQuery(text, CompId);
+            }
+            catch (Exception err)
+            {
+                //ErrLog(err, "DevLib.GetTableNameOfTag()");
+            }
+
+            return await Task.FromResult(result);
+        }
         public async Task<string> InsertByStoredProcedure(string spName, Hashtable Params, string CompId)
          {
             string retval = "";
@@ -724,7 +779,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             try
             {
                 string sUrl = "";                
-                sUrl = baseFocusAPIUrl + "/Transactions/" + VoucherName + "/" + VoucherNo;
+                sUrl = baseFocusAPIUrl + "/Transactions/" + VoucherName + "/" + VoucherNo.Replace("/","~~");
               
                 using (var client = new WebClientDel())
                 {
@@ -856,6 +911,284 @@ namespace ExtModule.API.Infrastructure.Repositories
 
         }
 
+        #region GetSessionId
+        public async Task<loginRes> Login(string username, string password, string companycode, string sUrl)
+        {
+            loginRes obj = new loginRes();
+            try
+            {
+                 obj=(Focus8API.Login(username, password, companycode, sUrl));
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("Login", ex);
+
+            }
+            return obj;
+        }
+        #endregion
+        #region ValidateSessionId
+        public async Task<loginRes> validateFocusSessionId(string sesessionId,string companycode, string sUrl)
+        {
+            loginRes obj = new loginRes();
+            try
+            {
+                obj = (Focus8API.validateSession( companycode,sesessionId, sUrl));
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("Login", ex);
+
+            }
+            return obj;
+        }
+        #endregion
+        #region LogOut
+        public async Task<loginRes> LogOut(string sessionId, string sUrl)
+        {
+            loginRes obj = new loginRes();
+            try
+            {
+                
+                obj = (Focus8API.GetLogOut(sessionId, sUrl));
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("Login", ex);
+
+            }
+            return obj;
+        }
+        #endregion
+
+        #region Email Test
+        public async Task<Hashtable> SendEmailTest( string CompId = "")
+        {
+
+            Hashtable response = new Hashtable();
+            
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+                                    | SecurityProtocolType.Tls11
+                                    | SecurityProtocolType.Tls12;
+            //test
+            var smtpClient = new SmtpClient("smtp.office365.com")
+            {
+                Port = 587,
+                Credentials = new NetworkCredential("focusextdevelopment@outlook.com", "focus@1234"),
+                EnableSsl = true,
+            };
+
+            var mailMessage = new MailMessage
+            {
+                From = new MailAddress("focusextdevelopment@outlook.com"),
+                Subject = "Test Email",
+                Body = "This is a test email sent using SMTP with Gmail in .NET 8.0",
+                IsBodyHtml = true,
+            };
+            mailMessage.To.Add("sushmita@focussoftnet.com");
+            try
+            {
+                smtpClient.Send(mailMessage);
+                response["status"] = 1 ;
+                response["message"] = "success";
+            }
+            catch (Exception e)
+            {
+                response["status"] = 0;
+                response["message"] = e.Message;
+            }
+            
+            return response;
+            }
+        #endregion
+        #region Email
+        /// <summary>
+        /// Send Email
+        /// </summary>
+
+        /// <param name="To">To sloginuserName [string array]</param>
+        /// <param name="Cc">Cc sloginuserName [string array]</param>
+        /// <param name="Bcc">BCc sloginuserName [string array]</param>
+        /// <param name="Subject">Subject</param>
+        /// <param name="Body">Body</param>
+        /// <param name="Attachment">Attachment give physical path [string array]</param>
+        /// <param name="SMPT_Host">SMPT Host, set "" to get value from Preferences </param>
+        /// <param name="SMPT_Port">SMPT Port, set 0 to get value from Preferences </param>
+        /// <returns>Return status,message as hashtable</returns>
+        public async Task<Hashtable> SendEmail(string From,string Password, string[] To, string[] Cc, string[] Bcc, string Subject, string Body, string[] Attachment, string SMPT_Host, int SMPT_Port, string CompId = "")
+        {
+            
+            Hashtable   response=new Hashtable();
+            try
+            {
+                ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+                                    | SecurityProtocolType.Tls11
+                                    | SecurityProtocolType.Tls12;
+                //test
+                using (var message = new MailMessage())
+                {
+                    message.To.Add(new MailAddress("sushmi46@gmail.com", "sushmita"));
+                    message.From = new MailAddress("infofocusextdevfocus@gmail.com", "info_focus_ext_dev");
+                    message.Subject = "My subject";
+                    message.Body = "My message";
+                    message.IsBodyHtml = false; // change to true if body msg is in html
+
+                    using (var client = new SmtpClient("smtp.gmail.com"))
+                    {
+                        client.UseDefaultCredentials = false;
+                        client.Port = 465;
+                        client.Credentials = new NetworkCredential("infofocusextdevfocus@gmail.com", "focus@1234");
+                        client.EnableSsl = true;
+
+                        try
+                        {
+                            await client.SendMailAsync(message); // Email sent
+                        }
+                        catch (Exception e)
+                        {
+                            response["status"] = 0;
+                            response["message"] = e.Message;
+                        }
+                    }
+                }
+                    //end
+                    if (SMPT_Port == 0)
+                {
+                    SMPT_Port = 587;
+                }
+                if (SMPT_Host == "")
+                {
+                    SMPT_Host = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 0", CompId);
+                }
+
+                if (SMPT_Host == "")
+                {
+                    response["status"] = 0;
+                    response["Message"] = "SMTP Address not defined";
+
+                    
+                    return response;
+                }
+                ////GetCompany details
+                //string sCompanyName = GetScalarByQuery("select sCompanyName from Focus8ERP.dbo.mcore_company where iCompanyId=" + CompId, CompId);
+                //Hashtable obj = GetCompanyDetails(sCompanyName);
+                //string From = (string)obj["FromEmailId"];
+                //string Password =(string) obj["FromPassword"];
+                if (From == "")
+                {
+                     From = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 1", CompId);
+                }
+                if (Password == "")
+                {
+                    Password = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 2", CompId);
+                }
+
+
+
+                // '''''''''''''''''''''''''''''''''''''''''Sending Mail''''''''''''''''''''''''''''''''
+                // sendMail()
+                using (var mail = new MailMessage())
+                {
+                    
+
+
+                    mail.From = new MailAddress(From);
+
+                    if (To.Length == 0)
+                    {
+
+                        response["status"] = 0;
+                        response["Message"] = "To Email ID not defined";
+                        return response;
+
+                    }
+
+                    foreach (string s in To)
+                    {
+                        if (s.Trim() != "")
+                        {
+                            string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
+                            mail.To.Add(new MailAddress(sEmail));
+                        }
+                    }
+
+                    foreach (string s in Cc)
+                    {
+                        if (s.Trim() != "")
+                        {
+                            string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
+                            mail.CC.Add(new MailAddress(sEmail));
+                        }
+                    }
+
+                    foreach (string s in Bcc)
+                    {
+                        if (s.Trim() != "")
+                        {
+                            string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
+                            mail.Bcc.Add(new MailAddress(sEmail));
+                        }
+                    }
+
+                    // ''''''''''''''''''''''''''''''Email Subject''''''''''''''''''''''''''''''''''''''''
+                    if ((Subject == ""))
+                    {
+                        mail.Subject = " ";
+                    }
+                    else
+                    {
+                        mail.Subject = Subject;
+                    }
+
+                    // ''''''''''''''''''''''''''''''Email Body''''''''''''''''''''''''''''''''''''''''
+
+                    if (Body == "")
+                    {
+                        mail.Body = " ";
+                    }
+                    else
+                    {
+                        mail.Body = Body;
+                    }
+
+                    // ''''''''''''''''''''''''''''''Email Attachment'''''''''''''''''''''''''
+                    foreach (string s in Attachment)
+                    {
+                        if (s != "")
+                        {
+                            mail.Attachments.Add(new Attachment(s));
+                        }
+                    }
+                    mail.IsBodyHtml = true;
+                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
+                                     | SecurityProtocolType.Tls11
+                                     | SecurityProtocolType.Tls12;
+                    using (var mailClient = new SmtpClient("smtp.office365.com"))
+                    {
+                        //  mailClient.Host = SMPT_Host;
+                        mailClient.Port = SMPT_Port;
+                        mailClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                        mailClient.UseDefaultCredentials = false;
+                        mailClient.Credentials = new NetworkCredential(From, Password);
+                        mailClient.EnableSsl = true;
+                        mailClient.TargetName = "STARTTLS/smtp.office365.com";
+                        mail.DeliveryNotificationOptions = DeliveryNotificationOptions.OnFailure;
+                        await mailClient.SendMailAsync(mail); // Email sent
+                        response["status"] = 1;
+                        response["message"] = "Email sent Successfully";
+                        return response;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                response["status"] = 0;
+                response["message"]= ex.Message;                                
+                
+            }
+            return response;
+        }
+        #endregion
 
         #region common functions
         public string GetConnectionString(string CompId)
@@ -902,7 +1235,24 @@ namespace ExtModule.API.Infrastructure.Repositories
 
             return result;
         }
-       
+        private string GetTableNameOfTag_m(int iMasterTypeId, string CompId, string connString = "")
+        {
+            string result = "";
+            try
+            {
+                string text = "";
+                text = "Select 'vm' + sModule +'_' + sMasterName [TableName] From cCore_MasterDef Where iMasterTypeId = " + Convert.ToString(iMasterTypeId);
+                result = GetScalarByQuery(text, CompId);
+            }
+            catch (Exception err)
+            {
+                //ErrLog(err, "DevLib.GetTableNameOfTag()");
+            }
+
+            return result;
+        }
+
+
         public string GetScalarByQuery(string strQry, string CompId)
         {
             string result = "";
@@ -959,12 +1309,142 @@ namespace ExtModule.API.Infrastructure.Repositories
             //EventLog("GetDataTable - OUT");
             return dataTable;
         }
+        public Hashtable GetCompanyDetails(string company)
+        {
+            Hashtable obj = new Hashtable();
+            try
+            {
+                if (!string.IsNullOrEmpty(company))
+                {
+                    //  company = company.Replace("&", "and");
+                    XmlDocument doc = new XmlDocument();
+                    string strPath = System.IO.Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().GetName().CodeBase);  //System.IO.Directory.GetCurrentDirectory();
+
+                    doc.Load(strPath + @"\CompanyDetails.xml");
+                    
+                        foreach (XmlNode comp in doc.SelectNodes("Company"))
+                        {
+                            string name = comp.SelectSingleNode("Name").InnerText;
+                            if (name == company)
+                            {
+                                obj.Add("FromEmailId", comp.SelectSingleNode("ExtDailyAttd_EmailUserName").InnerText);
+                                obj.Add("FromPassword", comp.SelectSingleNode("ExtDailyAttd_EmailPassword").InnerText);
+                             
+                                return obj;
+                            }
+                        }
+                    
+                }
+
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+            return obj;
+        }
 
         #endregion
 
         #region F8API
         public class Focus8API
         {
+            public static loginRes Login(string username, string password, string companycode, string sUrl)
+            {
+
+                bool status = false;
+                loginRes lstResult = new loginRes();
+               
+                try
+                {
+                    List<Hashtable> datas = new List<Hashtable>();
+                    Hashtable data = new Hashtable { { "Username", username }, { "password", password }, { "CompanyCode", companycode } };
+                    datas.Add(data);
+                    Hashtable login = new Hashtable { { "data", datas }, { "result", "1" }, { "message", "" } };
+                    string url = sUrl + "/Login";
+                   
+
+                    string json = JsonConvert.SerializeObject(login);
+                    using (var client = new WebClient())
+                    {
+                        client.Encoding = Encoding.UTF8;
+                        client.Headers.Add("Content-Type", "application/json");
+                        client.Timeout = 5 * 60 * 1000;
+                        var response = client.UploadString(url, json);                        
+                        lstResult = JsonConvert.DeserializeObject<loginRes>(response);
+                         
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    throw new CustomException("F8API.Login", ex);
+
+                }
+
+                return lstResult;
+            }
+            public static loginRes validateSession(string companycode,string sessionId, string sUrl)
+            {
+
+                bool status = false;
+                loginRes lstResult = new loginRes();
+
+                try
+                {
+                    List<Hashtable> datas = new List<Hashtable>();
+                    Hashtable data = new Hashtable {  { "CompanyCode", companycode } };
+                    datas.Add(data);
+                    Hashtable login = new Hashtable { { "data", datas }, { "result", "1" }, { "message", "" } };
+                    string url = sUrl + "/IsValidSession";
+
+
+                    string json = JsonConvert.SerializeObject(login);
+                    using (var client = new WebClient())
+                    {
+                        client.Encoding = Encoding.UTF8;
+                        client.Headers.Add("Content-Type", "application/json");
+                        client.Headers.Add("fSessionId", sessionId);
+                        client.Timeout = 5 * 60 * 1000;
+                        var response = client.UploadString(url, json);
+                        lstResult = JsonConvert.DeserializeObject<loginRes>(response);
+
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    throw new CustomException("F8API.Login", ex);
+
+                }
+
+                return lstResult;
+            }
+
+            public static loginRes GetLogOut(string AccessToken, string sUrl)
+            {
+                loginRes result = new loginRes();
+                
+                try
+                {
+                    string url = sUrl + "/Logout";
+                    using (WebClient client = new WebClient())
+                    {
+                        client.Timeout = 5 * 60 * 1000;
+                        client.Headers.Add("fSessionId", AccessToken);
+                        client.Headers.Add("Content-Type", "application/json");
+                        string ret = client.DownloadString(url);
+                        result = JsonConvert.DeserializeObject<loginRes>(ret);
+                      
+                        
+                    }
+                }
+                catch (Exception ex)
+                {
+                    throw new CustomException("F8API.Logout", ex);
+                }
+                return result;
+            }
             public static string Post(string url, string data, string sessionId, ref string err)
             {                
                 try

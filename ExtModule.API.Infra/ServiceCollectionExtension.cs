@@ -1,6 +1,8 @@
 ﻿
+using ExtModule.API.App.Interfaces;
 using ExtModule.API.Application.Factory;
 using ExtModule.API.Application.Interfaces;
+using ExtModule.API.Infra.Repositories;
 using ExtModule.API.Infrastructure.Repositories;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -18,7 +20,7 @@ namespace ExtModule.API.Infrastructure
 
             services.AddTransient<IERPRepository,RepositoryERP>();
             services.AddTransient<ICRMRepository, RepositoryCRM>();
-        
+            services.AddScoped<IJWTTokenService, JwtTokenService>();
 
             services.AddTransient<IRepositoryFactory, RepositoryFactory>();
         }

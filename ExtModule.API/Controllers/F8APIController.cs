@@ -7,9 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 using ExtModule.API.Logging;
 using log4net;
 using log4net.Config;
+using Microsoft.AspNetCore.Authorization;
 
 namespace ExtModule.API.Controllers
 {
+    
     [ApiController]
     public class F8APIController : ControllerBase
     {
@@ -99,6 +101,7 @@ namespace ExtModule.API.Controllers
         /// <param name="type"></param>
         /// <returns></returns>
         [HttpPost]
+        [Authorize]
         [Route("api/{type}/F8API/DeleteVoucher")]
 
         public async Task<FocusPostResponse<F8API.PostResponse>> DeleteVoucher(DeleteVoucher obj, string type)
@@ -124,5 +127,7 @@ namespace ExtModule.API.Controllers
             return res;
         }
         #endregion
+
+      
     }
 }
