@@ -72,7 +72,7 @@ POST {{ExtModule.API_HostAddress}}/api/Auth/LoginBySession
 Content-Type: application/json
 
 {
-  "SessionId":"030^040320251357445821081",
+  "SessionId":"030^05032025151516671081",
   "CompanyCode":"030"
 }
 

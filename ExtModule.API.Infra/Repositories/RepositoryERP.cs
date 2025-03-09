@@ -974,18 +974,18 @@ namespace ExtModule.API.Infrastructure.Repositories
             var smtpClient = new SmtpClient("smtp.office365.com")
             {
                 Port = 587,
-                Credentials = new NetworkCredential("focusextdevelopment@outlook.com", "focus@1234"),
+                Credentials = new NetworkCredential("test@egss.ae", "T@egss25"),
                 EnableSsl = true,
             };
 
             var mailMessage = new MailMessage
             {
-                From = new MailAddress("focusextdevelopment@outlook.com"),
+                From = new MailAddress("test@egss.ae"),
                 Subject = "Test Email",
                 Body = "This is a test email sent using SMTP with Gmail in .NET 8.0",
                 IsBodyHtml = true,
             };
-            mailMessage.To.Add("sushmita@focussoftnet.com");
+            mailMessage.To.Add("sushmita@focussoftnet.ae");
             try
             {
                 smtpClient.Send(mailMessage);
@@ -1024,34 +1024,35 @@ namespace ExtModule.API.Infrastructure.Repositories
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
                                     | SecurityProtocolType.Tls11
                                     | SecurityProtocolType.Tls12;
-                //test
-                using (var message = new MailMessage())
-                {
-                    message.To.Add(new MailAddress("sushmi46@gmail.com", "sushmita"));
-                    message.From = new MailAddress("infofocusextdevfocus@gmail.com", "info_focus_ext_dev");
-                    message.Subject = "My subject";
-                    message.Body = "My message";
-                    message.IsBodyHtml = false; // change to true if body msg is in html
+              
+                ////test
+                //using (var message = new MailMessage())
+                //{
+                //    message.To.Add(new MailAddress("sushmita@focussoftnet.ae", "sushmita"));
+                //    message.From = new MailAddress("test@egss.ae", "T@egss25");
+                //    message.Subject = "My subject";
+                //    message.Body = "My message";
+                //    message.IsBodyHtml = false; // change to true if body msg is in html
 
-                    using (var client = new SmtpClient("smtp.gmail.com"))
-                    {
-                        client.UseDefaultCredentials = false;
-                        client.Port = 465;
-                        client.Credentials = new NetworkCredential("infofocusextdevfocus@gmail.com", "focus@1234");
-                        client.EnableSsl = true;
+                //    using (var client = new SmtpClient("smtp.office365.com"))
+                //    {
+                //        client.UseDefaultCredentials = false;
+                //        client.Port = 465;
+                //        client.Credentials = new NetworkCredential("test@egss.ae", "T@egss25");
+                //        client.EnableSsl = true;
 
-                        try
-                        {
-                            await client.SendMailAsync(message); // Email sent
-                        }
-                        catch (Exception e)
-                        {
-                            response["status"] = 0;
-                            response["message"] = e.Message;
-                        }
-                    }
-                }
-                    //end
+                //        try
+                //        {
+                //            await client.SendMailAsync(message); // Email sent
+                //        }
+                //        catch (Exception e)
+                //        {
+                //            response["status"] = 0;
+                //            response["message"] = e.Message;
+                //        }
+                //    }
+                //}
+                //    //end
                     if (SMPT_Port == 0)
                 {
                     SMPT_Port = 587;
@@ -1160,24 +1161,43 @@ namespace ExtModule.API.Infrastructure.Repositories
                         }
                     }
                     mail.IsBodyHtml = true;
-                    ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
-                                     | SecurityProtocolType.Tls11
-                                     | SecurityProtocolType.Tls12;
-                    using (var mailClient = new SmtpClient("smtp.office365.com"))
-                    {
-                        //  mailClient.Host = SMPT_Host;
-                        mailClient.Port = SMPT_Port;
-                        mailClient.DeliveryMethod = SmtpDeliveryMethod.Network;
-                        mailClient.UseDefaultCredentials = false;
-                        mailClient.Credentials = new NetworkCredential(From, Password);
-                        mailClient.EnableSsl = true;
-                        mailClient.TargetName = "STARTTLS/smtp.office365.com";
-                        mail.DeliveryNotificationOptions = DeliveryNotificationOptions.OnFailure;
-                        await mailClient.SendMailAsync(mail); // Email sent
-                        response["status"] = 1;
-                        response["message"] = "Email sent Successfully";
-                        return response;
-                    }
+              
+
+                        using (var client = new SmtpClient("smtp.office365.com"))
+                        {
+                            client.UseDefaultCredentials = false;
+                            client.Port = SMPT_Port;
+                            client.Credentials = new NetworkCredential("test@egss.ae", "T@egss25");
+                            client.EnableSsl = true;
+
+                            try
+                            {
+                                await client.SendMailAsync(mail); // Email sent
+                            response["status"] = 1;
+                            response["message"] = "Email sent Successfully";
+                        }
+                            catch (Exception e)
+                            {
+                                response["status"] = 0;
+                                response["message"] = e.Message;
+                            }
+                        }
+                    
+                    //using (var mailClient = new SmtpClient("smtp.office365.com"))
+                    //{
+                    //    //  mailClient.Host = SMPT_Host;
+                    //    mailClient.Port = SMPT_Port;
+                    //    mailClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                    //    mailClient.UseDefaultCredentials = false;
+                    //    mailClient.Credentials = new NetworkCredential(From, Password);
+                    //    mailClient.EnableSsl = true;
+                    //    mailClient.TargetName = "STARTTLS/smtp.office365.com";
+                    //    mail.DeliveryNotificationOptions = DeliveryNotificationOptions.OnFailure;
+                    //    await mailClient.SendMailAsync(mail); // Email sent
+                    //    response["status"] = 1;
+                    //    response["message"] = "Email sent Successfully";
+                    //    return response;
+                    //}
                 }
             }
             catch (Exception ex)
