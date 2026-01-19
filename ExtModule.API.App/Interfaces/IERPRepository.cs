@@ -19,7 +19,7 @@ namespace ExtModule.API.Application.Interfaces
         Task<loginRes> Login(string username, string password, string companycode, string sUrl);
         Task<loginRes> validateFocusSessionId(string sesessionId, string companycode, string sUrl);
         Task<loginRes> LogOut(string sessionId, string sUrl);
-
+        Task<Hashtable> GetItemImage(string compId, int productId);
 
     }
 }

@@ -68,7 +68,7 @@ builder.Services.AddControllers();
 var logRepository = LogManager.GetRepository(Assembly.GetEntryAssembly());
 XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 
-//Injecting services.
+//Injecting services from infrastructure.
 builder.Services.RegisterServices();
 
 //add dto class mapper

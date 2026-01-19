@@ -17,7 +17,7 @@ using System.Net.Http;
 using System.Net;
 using System.Xml.Linq;
 using static ExtModule.API.Core.ERP.F8API;
-
+using ExtModule.API.Logging;
 using ExtModule.API.Core;
 using Newtonsoft.Json;
 using static ExtModule.API.Infrastructure.Repositories.RepositoryERP.Focus8API;
@@ -26,6 +26,7 @@ using Microsoft.Extensions.Logging;
 using System.Net.Mail;
 using static ExtModule.API.Core.CRM;
 using System.Xml;
+using Focus.TranSettings.DataStructs;
 
 namespace ExtModule.API.Infrastructure.Repositories
 {
@@ -34,104 +35,150 @@ namespace ExtModule.API.Infrastructure.Repositories
         public async Task<DataTable> GetDataTableByStoredProcedure(string spName, Hashtable Params, string CompId)
         {
             var dt = new DataTable();
-            string conString = GetConnectionString(CompId);
-          
-            SqlConnection con = new SqlConnection(conString);
-
+            string conString = GetConnectionString(CompId);                    
             try
             {
-                SqlCommand cmd = new SqlCommand(spName, con);
-                if (Params != null)
-                {
-                    foreach (DictionaryEntry s in Params)
+                using (SqlConnection con = new SqlConnection(conString))
+                {                    
+                    SqlCommand cmd = new SqlCommand(spName, con);
+                    Logger.Instance.LogInfo("Info", "Sp Name  "+spName);
+                    if (Params != null)
                     {
-                        cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                        foreach (DictionaryEntry s in Params)
+                        {
+                            cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                            Logger.Instance.LogInfo("Info", "Key  " + s.Key+" Value "+s.Value.ToString());
+                        }
                     }
-                }
 
-                cmd.CommandType = CommandType.StoredProcedure;
-                int ConnTimeOut = 600;
-                cmd.CommandTimeout = ConnTimeOut;
-                con.Open();
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                da.Fill(dt);
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    int ConnTimeOut = 600;
+                    cmd.CommandTimeout = ConnTimeOut;
+                    con.Open();
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        dt.Load(reader);
+                    }
+                    //SqlDataAdapter da = new SqlDataAdapter(cmd);
+                    //da.Fill(dt);
+                }
             }
             catch (Exception ex)
             {
+                Logger.Instance.LogError("Error", "GetDataTableByStoredProcedure", ex);
                 throw new CustomException("GetDataTableByStoredProcedure",ex);
                
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+           
             return dt;
+        }
+
+        public async Task<List<DataTable>> GetMultipleResultSetsBySP(string spName, Hashtable Params, string CompId)
+        {
+            var resultTables = new List<DataTable>();
+            string conString = GetConnectionString(CompId);
+
+            try
+            {
+                using (SqlConnection con = new SqlConnection(conString))
+                {
+                    using (SqlCommand cmd = new SqlCommand(spName, con))
+                    {
+                        if (Params != null)
+                        {
+                            foreach (DictionaryEntry s in Params)
+                            {
+                                cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                            }
+                        }
+
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.CommandTimeout = 600;
+
+                        await con.OpenAsync();
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                        {
+                            do
+                            {
+                                var dt = new DataTable();
+                                dt.Load(reader);
+                                resultTables.Add(dt);
+                            } while (!reader.IsClosed && await reader.NextResultAsync());
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("GetMultipleResultSets", ex);
+            }
+
+            return resultTables;
         }
         public async Task<DataSet> GetDataSetByStoredProcedure(string spName, Hashtable Params, string CompId)
         {
             var ds = new DataSet();
             string conString = GetConnectionString(CompId);
 
-            SqlConnection con = new SqlConnection(conString);
+         
 
             try
             {
-                SqlCommand cmd = new SqlCommand(spName, con);
-                if (Params != null)
+                using (SqlConnection con = new SqlConnection(conString))
                 {
-                    foreach (DictionaryEntry s in Params)
+                    SqlCommand cmd = new SqlCommand(spName, con);
+                    if (Params != null)
                     {
+                        foreach (DictionaryEntry s in Params)
+                        {
 
-                        cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                            cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                        }
                     }
-                }
 
-                cmd.CommandType = CommandType.StoredProcedure;
-                con.Open();
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                da.Fill(ds);
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    int ConnTimeOut = 600;
+                    cmd.CommandTimeout = ConnTimeOut;
+                    con.Open();
+                    SqlDataAdapter da = new SqlDataAdapter(cmd);
+                    da.Fill(ds);
+                }
             }
             catch (Exception ex)
             {
                 throw new CustomException("GetDataSetByStoredProcedure", ex);
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+            
             return ds;
         }
         public async Task<string> GetScalarByStoredProcedure(string spName, Hashtable Params, string CompId)
         {
             string retval= "" ;
             string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+          
             try
             {
-                SqlCommand sqlCommand = new SqlCommand(spName, sqlConnection);
-                if (Params != null)
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
-                    foreach (DictionaryEntry Param in Params)
+                    SqlCommand sqlCommand = new SqlCommand(spName, con);
+                    if (Params != null)
                     {
-                        sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
+                        foreach (DictionaryEntry Param in Params)
+                        {
+                            sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
+                        }
                     }
-                }
 
-                sqlCommand.CommandType = CommandType.StoredProcedure;
-                sqlConnection.Open();
-                retval = Convert.ToString(sqlCommand.ExecuteScalar());
+                    sqlCommand.CommandType = CommandType.StoredProcedure;
+                    con.Open();
+                    retval = Convert.ToString(sqlCommand.ExecuteScalar());
+                }
             }
             catch (Exception ex)
             {
                 throw new CustomException("GetScalarByStoredProcedure", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+           
             return await Task.FromResult(retval);
 
         }
@@ -140,39 +187,38 @@ namespace ExtModule.API.Infrastructure.Repositories
             var dt = new DataTable();
             string conString = GetConnectionString(CompId);
 
-            SqlConnection con = new SqlConnection(conString);
+           
 
             try
             {
-                string text = "Select " + string.Join(",", Columns) + " From " + ViewName + " Where 1=1 ";
-                if (!string.IsNullOrEmpty(Condition))
+                using (SqlConnection con = new SqlConnection(conString))
                 {
-                    text = text + " and " + Condition;
-                }
-                if (OrderColoumns != null)
-                {
-                    text = text + " order by " + string.Join(",", OrderColoumns);
-                }
-                SqlCommand cmd = new SqlCommand(text, con);
-                
+                    string text = "Select " + string.Join(",", Columns) + " From " + ViewName + " Where 1=1 ";
+                    if (!string.IsNullOrEmpty(Condition))
+                    {
+                        text = text + " and " + Condition;
+                    }
+                    if (OrderColoumns != null)
+                    {
+                        text = text + " order by " + string.Join(",", OrderColoumns);
+                    }
+                    SqlCommand cmd = new SqlCommand(text, con);
 
-                cmd.CommandType = CommandType.Text;
-                int ConnTimeOut = 600;
-                cmd.CommandTimeout = ConnTimeOut;
-                con.Open();
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                da.Fill(dt);
+
+                    cmd.CommandType = CommandType.Text;
+                    int ConnTimeOut = 600;
+                    cmd.CommandTimeout = ConnTimeOut;
+                    con.Open();
+                    SqlDataAdapter da = new SqlDataAdapter(cmd);
+                    da.Fill(dt);
+                }
             }
             catch (Exception ex)
             {
                 throw new CustomException("GetDataTableByView", ex);
 
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+           
             return dt;
         }
         public async Task<string> DateToInt(string sDate, string CompId, string connString = "")
@@ -195,74 +241,67 @@ namespace ExtModule.API.Infrastructure.Repositories
         {
             var dt = new DataTable();
             string conString = GetConnectionString(CompId);
-
-            SqlConnection con = new SqlConnection(conString);
-
+            Logger.Instance.LogInfo("Info",conString);
+           
             try
             {
-                string text = "Select " + string.Join(",", Columns) + " From " + GetTableNameOfTag(iMasterTypeId, CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
-                if (!string.IsNullOrEmpty(Condition))
+                using (SqlConnection con = new SqlConnection(conString))
                 {
-                    text = text + " and " + Condition;
+                    string text = "Select " + string.Join(",", Columns) + " From " + GetTableNameOfTag(iMasterTypeId, CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
+                    if (!string.IsNullOrEmpty(Condition))
+                    {
+                        text = text + " and " + Condition;
+                    }
+                    if (OrderColoumns != null)
+                    {
+                        text = text + " order by " + string.Join(",", OrderColoumns);
+                    }
+                    Logger.Instance.LogInfo("Info", text);
+                    Logger.Instance.LogInfo("Info", CompId);
+                    dt = GetDataTableByQuery(text, CompId);
+                    if (dt.Rows.Count > 0)
+                    {
+                        return dt;
+                    }
                 }
-                if (OrderColoumns !=null)
-                {
-                    text =text+" order by " + string.Join(",",OrderColoumns);
-                }
-
-                dt = GetDataTableByQuery(text, CompId);
-                if (dt.Rows.Count > 0)
-                {
-                    return dt;
-                }
-               
             }
             catch (Exception ex)
             {
                 throw new CustomException("GetMasterData", ex);
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+           
             return dt;
         }
         public async Task<DataTable> GetMasterData_M(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns)
         {
             var dt = new DataTable();
-            string conString = GetConnectionString(CompId);
-
-            SqlConnection con = new SqlConnection(conString);
-
+         
             try
             {
+                string conString = GetConnectionString(CompId);
                 string text = "Select " + string.Join(",", Columns) + " From " + GetTableNameOfTag_m(iMasterTypeId, CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
-                if (!string.IsNullOrEmpty(Condition))
-                {
-                    text = text + " and " + Condition;
-                }
-                if (OrderColoumns != null)
-                {
-                    text = text + " order by " + string.Join(",", OrderColoumns);
-                }
-
-                dt = GetDataTableByQuery(text, CompId);
-                if (dt.Rows.Count > 0)
-                {
-                    return dt;
-                }
+                    if (!string.IsNullOrEmpty(Condition))
+                    {
+                        text = text + " and " + Condition;
+                    }
+                    if (OrderColoumns != null)
+                    {
+                        text = text + " order by " + string.Join(",", OrderColoumns);
+                    }
+                   
+                    dt = GetDataTableByQuery(text, CompId);
+                    if (dt.Rows.Count > 0)
+                    {
+                        return dt;
+                    }
+                
 
             }
             catch (Exception ex)
             {
                 throw new CustomException("GetMasterData", ex);
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+            
             return dt;
         }
         public async Task<string> GetScalarByFunc(string FunctionName, string CompId)
@@ -285,109 +324,147 @@ namespace ExtModule.API.Infrastructure.Repositories
          {
             string retval = "";
             string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+           
             try
             {
-                SqlCommand sqlCommand = new SqlCommand(spName, sqlConnection);
-                if (Params != null)
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
-                    foreach (DictionaryEntry Param in Params)
-                    {
-                        sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
-                    }
-                }
-
-                sqlCommand.CommandType = CommandType.StoredProcedure;
-                sqlConnection.Open();
-                retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
-            }
-            catch (Exception ex)
-            {
-                throw new CustomException("InsertByStoredProcedure", ex);
-            }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
-         }
-
-        public async Task<string> BulkInsertByStoredProcedure(string spName, List<Hashtable> Params, string CompId)
-        {
-
-            int rows = 0;
-            string ConnStr = GetConnectionString(CompId);
-            SqlCommand sqlCommand = null;
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            try
-            {
-                sqlConnection.Open();
-                foreach (Hashtable s in Params)
-                {
-                    sqlCommand = null;
-                    sqlCommand = new SqlCommand(spName, sqlConnection);
+                    SqlCommand sqlCommand = new SqlCommand(spName, con);
                     if (Params != null)
                     {
-                        foreach (DictionaryEntry Param in s)
+                        foreach (DictionaryEntry Param in Params)
                         {
                             sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
                         }
                     }
 
                     sqlCommand.CommandType = CommandType.StoredProcedure;
-                
-                    rows = rows+ (sqlCommand.ExecuteNonQuery());
+                    con.Open();
+                    retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
                 }
-                 
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("InsertByStoredProcedure", ex);
+            }
+            
+            return await Task.FromResult(retval);
+         }
+
+        #region GetItemImage
+        public async Task<Hashtable> GetItemImage(string compId, int productId)
+        {
+            string conString = GetConnectionString(compId);
+
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                await con.OpenAsync();
+             
+                string query = "SELECT pImage,pImageName FROM muCore_Product WHERE imasterid = @ProductId";
+                using (SqlCommand cmd = new SqlCommand(query, con))
+                {
+                    cmd.Parameters.AddWithValue("@ProductId", productId);
+
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                    {
+                        if (await reader.ReadAsync())
+                        {
+                            var result = new Hashtable();
+
+                            if (!reader.IsDBNull(reader.GetOrdinal("pImage")))
+                            {
+                                byte[] imageBytes = (byte[])reader["pImage"];
+                                result["pImage"] = Convert.ToBase64String(imageBytes);
+                            }
+
+                            if (!reader.IsDBNull(reader.GetOrdinal("pImageName")))
+                            {
+                                result["pImageName"] = reader["pImageName"].ToString();
+                            }
+
+                            return result;
+                        }
+
+                    }
+                }
+            }
+            return null;
+        }
+        #endregion
+        public async Task<string> BulkInsertByStoredProcedure(string spName, List<Hashtable> Params, string CompId)
+        {
+
+            int rows = 0;
+            string ConnStr = GetConnectionString(CompId);
+            SqlCommand sqlCommand = null;
+           try
+            {
+                using (SqlConnection con = new SqlConnection(ConnStr))
+                {
+                    con.Open();
+                    foreach (Hashtable s in Params)
+                    {
+                        sqlCommand = null;
+                        sqlCommand = new SqlCommand(spName, con);
+                        if (Params != null)
+                        {
+                            foreach (DictionaryEntry Param in s)
+                            {
+                                sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
+                            }
+                        }
+
+                        sqlCommand.CommandType = CommandType.StoredProcedure;
+
+                        rows = rows + (sqlCommand.ExecuteNonQuery());
+                    }
+                }
             }
             catch (Exception ex)
             {
                 throw new CustomException("BulkInsertByStoredProcedure", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+            
             return await Task.FromResult(rows.ToString());
         }
         public async Task<string> BulkInsertToTable(string TableName, List<Hashtable> lstParams, string CompId)
         {
             string retval = "";
             string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+          
             try
             {
                 string query = "";
-
-                List<string> coulumnNames = new List<string>();
-                List<string> values = new List<string>();
-                if (lstParams != null)
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
-                    
-           foreach(Hashtable obj in lstParams)
+                    List<string> coulumnNames = new List<string>();
+                List<string> values = new List<string>();
+                    if (lstParams != null)
                     {
-                        foreach (DictionaryEntry Param in obj)
+
+                        foreach (Hashtable obj in lstParams)
                         {
-                            if (Param.Value != null)
+                            foreach (DictionaryEntry Param in obj)
                             {
+                                if (Param.Value != null)
+                                {
 
 
-                                coulumnNames.Add(Param.Key.ToString());
-                                values.Add(Param.Value.ToString());
+                                    coulumnNames.Add(Param.Key.ToString());
+                                    values.Add(Param.Value.ToString());
 
+                                }
                             }
-                        }
-                        //insert
-                        query = @"insert into " + TableName;
-                        string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
-                        query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
-                        SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
+                            //insert
+                            query = @"insert into " + TableName;
+                            string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
+                            query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
+                            SqlCommand sqlCommand = new SqlCommand(query, con);
 
-                        sqlCommand.CommandType = CommandType.Text;
-                        sqlConnection.Open();
-                        retval = Convert.ToString(sqlCommand.ExecuteScalar());
+                            sqlCommand.CommandType = CommandType.Text;
+                            con.Open();
+                            retval = Convert.ToString(sqlCommand.ExecuteScalar());
+                        }
                     }
                   
 
@@ -399,128 +476,135 @@ namespace ExtModule.API.Infrastructure.Repositories
             {
                 throw new CustomException("BulkInsertToTable", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+            
             return await Task.FromResult(retval);
         }
         public async Task<Hashtable> CreateAndBulkInsertToTable(string TableName, List<Hashtable> lstParams,Hashtable coloumns, string CompId)
         {
             Hashtable retval = new Hashtable();
             string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            sqlConnection.Open();
+
+            Logger.Instance.LogInfo("EventLog", "ConnStr :" + ConnStr);
             SqlCommand sqlCommand = null;
             try
             {
-                string query = "";
-                //drop table
-                query = "Drop table if exists " + TableName;
-                sqlCommand = new SqlCommand(query, sqlConnection);
-
-                sqlCommand.CommandType = CommandType.Text;
-                 sqlCommand.ExecuteNonQuery();
-                //create table
-                query = "Create Table " + TableName +" (";
-                foreach (DictionaryEntry param in coloumns)
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
-                    query = query + param.Key.ToString() +" "+param.Value.ToString()+" , ";
-                }
-                query = query.Trim().TrimEnd(',');
-                query = query + ")";
-                sqlCommand = new SqlCommand(query, sqlConnection);
-
-                sqlCommand.CommandType = CommandType.Text;
-
-               int flag = (sqlCommand.ExecuteNonQuery());
-                if (flag != 0)
-                {
+                    con.Open();
+                    string query = "";
+                    //drop table
+                    query = "Drop table if exists " + TableName;
                   
-                    if (lstParams != null)
+                    sqlCommand = new SqlCommand(query, con);
+
+                    sqlCommand.CommandType = CommandType.Text;
+                    sqlCommand.ExecuteNonQuery();
+                    //create table
+                    query = "Create Table " + TableName + " (";
+                    foreach (DictionaryEntry param in coloumns)
+                    {
+                       
+                        query = query + param.Key.ToString() + " " + param.Value.ToString() + " , ";
+                     
+                    }
+                    query = query.Trim().TrimEnd(',');
+                    query = query + ")";
+                  
+                    sqlCommand = new SqlCommand(query, con);
+
+                    sqlCommand.CommandType = CommandType.Text;
+                
+                    int flag = (sqlCommand.ExecuteNonQuery());
+                    if (flag != 0)
                     {
 
-                        foreach (Hashtable obj in lstParams)
+                        if (lstParams != null)
                         {
-                            List<string> coulumnNames = new List<string>();
-                            List<string> values = new List<string>();
-                            foreach (DictionaryEntry Param in obj)
+
+                            foreach (Hashtable obj in lstParams)
                             {
-                                if (Param.Value != null)
+                                List<string> coulumnNames = new List<string>();
+                                List<string> values = new List<string>();
+                                foreach (DictionaryEntry Param in obj)
                                 {
-                                    coulumnNames.Add(Param.Key.ToString());
-                                    values.Add(Param.Value.ToString());
+                                    if (Param.Value != null)
+                                    {
+                                        coulumnNames.Add(Param.Key.ToString());
+                                        Logger.Instance.LogInfo("EventLog", "key :" + Param.Key);
+                                        Logger.Instance.LogInfo("EventLog","value :"+ Param.Value);
+                                        values.Add(Param.Value.ToString());
 
+                                    }
                                 }
+                              
+                                //insert
+                                query = @"insert into " + TableName;
+                                string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
+                                Logger.Instance.LogInfo("EventLog", valueList);
+                                query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
+                                sqlCommand = new SqlCommand(query, con);
+
+                                sqlCommand.CommandType = CommandType.Text;
+
+                                retval["rows"] = (sqlCommand.ExecuteNonQuery());
+                                retval["message"] = "";
                             }
-                            //insert
-                            query = @"insert into " + TableName;
-                            string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
-                            query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
-                            sqlCommand = new SqlCommand(query, sqlConnection);
-
-                            sqlCommand.CommandType = CommandType.Text;
-
-                            retval["rows"] = (sqlCommand.ExecuteNonQuery());
-                            retval["message"] = "";
                         }
+
                     }
+                    else
+                    {
 
+                        retval["rows"] = 0;
+                        retval["message"] = " table " + TableName + " could not be created";
+                        return retval;
+                    }
                 }
-                else
-                {
-
-                    retval["rows"] = 0;
-                    retval["message"] = " table " + TableName + " could not be created";
-                    return retval;
-                }               
-
             }
             catch (Exception ex)
             {
+                Logger.Instance.LogError("error", ex.InnerException.Message, ex);
                 throw new CustomException("CreateAndBulkInsertToTable", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+          
             return await Task.FromResult(retval);
         }
         public async Task<string> InsertToTable(string TableName, Hashtable Params, string CompId)
         {
             string retval = "";
             string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+           
             try
             {
-                string query = "";
-               
-                List<string> coulumnNames = new List<string>();
-                List<string> values = new List<string>();
-                if (Params != null)
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
-                 
-                    
+                    string query = "";
+
+                    List<string> coulumnNames = new List<string>();
+                    List<string> values = new List<string>();
+                    if (Params != null)
+                    {
+
+
                         foreach (DictionaryEntry Param in Params)
-                        {                        
-                        if (Param.Value!=null)
                         {
-                            coulumnNames.Add(Param.Key.ToString());
-                            values.Add(Param.Value.ToString());
-                                
-                        }                        
+                            if (Param.Value != null)
+                            {
+                                coulumnNames.Add(Param.Key.ToString());
+                                values.Add(Param.Value.ToString());
+
+                            }
                         }
                         //insert
                         query = @"insert into " + TableName;
                         string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
                         query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
-                        SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
+                        SqlCommand sqlCommand = new SqlCommand(query, con);
 
                         sqlCommand.CommandType = CommandType.Text;
-                        sqlConnection.Open();
-                        retval = Convert.ToString(sqlCommand.ExecuteScalar());                    
+                        con.Open();
+                        retval = Convert.ToString(sqlCommand.ExecuteScalar());
+                    }
                 }
                 
                
@@ -529,11 +613,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             {
                 throw new CustomException("InsertToTable", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+           
             return await Task.FromResult(retval);
         }
 
@@ -541,35 +621,38 @@ namespace ExtModule.API.Infrastructure.Repositories
         {
             string retval = "";
             string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+            
             try
             {
-                string query = "";
-
-                List<string> coulumnNames = new List<string>();
-                List<string> values = new List<string>();
-                if (Params != null)
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
-                    
+                    string query = "";
+
+                    List<string> coulumnNames = new List<string>();
+                    List<string> values = new List<string>();
+                    if (Params != null)
+                    {
+
                         query = query + "update " + TableName + " set ";
                         string valueList = "";
                         foreach (DictionaryEntry Param in Params)
                         {
                             if (Param.Value != null)
                             {
-                                
+
                                 valueList = valueList + Param.Key.ToString() + "=" + $"'{Param.Value}',";
                             }
                         }
                         valueList = valueList.TrimEnd(',');
 
-                        query = query + valueList + " where 1=1 and "+condition;
-                        SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
+                        query = query + valueList + " where 1=1 and " + condition;
+                        SqlCommand sqlCommand = new SqlCommand(query, con);
 
                         sqlCommand.CommandType = CommandType.Text;
-                        sqlConnection.Open();
+                        con.Open();
                         retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
-                    
+
+                    }
                 }
 
 
@@ -578,50 +661,44 @@ namespace ExtModule.API.Infrastructure.Repositories
             {
                 throw new CustomException("InsertToTable", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+            
             return await Task.FromResult(retval);
         }
         public async Task<string> DeleteRowFromTable(string TableName, string condition, string CompId)
         {
             string retval = "";
             string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+          
             try
             {
-                string query = "";
-
-                List<string> coulumnNames = new List<string>();
-                List<string> values = new List<string>();
-                if (!string.IsNullOrEmpty(TableName ))
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
+                    string query = "";
 
-                    //delete
-                    query = @"delete  " + TableName;
-                   
-                    query = query + " where "+condition;
-                    SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
+                    List<string> coulumnNames = new List<string>();
+                    List<string> values = new List<string>();
+                    if (!string.IsNullOrEmpty(TableName))
+                    {
 
-                    sqlCommand.CommandType = CommandType.Text;
-                    sqlConnection.Open();
-                    retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
+                        //delete
+                        query = @"delete  " + TableName;
+
+                        query = query + " where " + condition;
+                        SqlCommand sqlCommand = new SqlCommand(query, con);
+
+                        sqlCommand.CommandType = CommandType.Text;
+                        con.Open();
+                        retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
+
+                    }
 
                 }
-
-
             }
             catch (Exception ex)
             {
                 throw new CustomException("DeleteRowFromTable", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+           
             return await Task.FromResult(retval);
         }
         public async Task<FocusPostResponse<F8API.PostResponse>>  InterCompanyPostingByStoredProcedureVoucherWise(string spName, Hashtable Param, string SessionId, string CompId)
@@ -1209,7 +1286,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             return response;
         }
         #endregion
-
+      
         #region common functions
         public string GetConnectionString(string CompId)
         {
@@ -1280,22 +1357,21 @@ namespace ExtModule.API.Infrastructure.Repositories
              string ConnStr=GetConnectionString(CompId);
             
 
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+           
             try
             {
-                SqlCommand sqlCommand = new SqlCommand(strQry, sqlConnection);
-                sqlConnection.Open();
-                result = Convert.ToString(sqlCommand.ExecuteScalar());
+                using (SqlConnection con = new SqlConnection(ConnStr))
+                {
+                    SqlCommand sqlCommand = new SqlCommand(strQry, con);
+                    con.Open();
+                    result = Convert.ToString(sqlCommand.ExecuteScalar());
+                }
             }
             catch (Exception err)
             {
                // ErrLog(err, "DevLib.GetScalarByQuery()");
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
+           
 
             return result;
         }
@@ -1306,17 +1382,19 @@ namespace ExtModule.API.Infrastructure.Repositories
             DataTable dataTable = new DataTable();
             string ConnStr=GetConnectionString(CompId);
             
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+           
             try
             {
-                SqlCommand sqlCommand = new SqlCommand(strQry, sqlConnection);
-                int commandTimeout = 6000;
-                sqlCommand.CommandTimeout = commandTimeout;
-                sqlConnection.Open();
-                SqlDataAdapter sqlDataAdapter = new SqlDataAdapter(sqlCommand);
-               
-                sqlDataAdapter.Fill(dataTable);
-            
+                using (SqlConnection con = new SqlConnection(ConnStr))
+                {
+                    SqlCommand sqlCommand = new SqlCommand(strQry, con);
+                    int commandTimeout = 6000;
+                    sqlCommand.CommandTimeout = commandTimeout;
+                    con.Open();
+                    SqlDataAdapter sqlDataAdapter = new SqlDataAdapter(sqlCommand);
+
+                    sqlDataAdapter.Fill(dataTable);
+                }
             }
             catch (Exception err)
             {

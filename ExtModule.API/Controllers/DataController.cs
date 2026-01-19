@@ -11,6 +11,8 @@ using log4net;
 using log4net.Config;
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
+using ExtModule.API.Application.Interfaces;
+
 
 
 namespace ExtModule.API.Controllers
@@ -19,10 +21,11 @@ namespace ExtModule.API.Controllers
     public class DataController : ControllerBase
     {
         private readonly IRepositoryFactory _repositoryFactory;
-
-        public DataController(IRepositoryFactory repositoryFactory)
+        private readonly IERPRepository _repositoryERP;
+        public DataController(IRepositoryFactory repositoryFactory,IERPRepository eRPRepository)
         {
             _repositoryFactory = repositoryFactory;
+            _repositoryERP = eRPRepository;
        
         }
         #region Test
@@ -63,6 +66,39 @@ namespace ExtModule.API.Controllers
                 catch (Exception ex)
                 {
                     Logger.Instance.LogError(fileName,ex.InnerException.Message,ex);
+                    objRes.status = 0;
+                    objRes.sMessage = ex.Message;
+                }
+            }
+            return Ok(objRes);
+
+        }
+
+        #endregion
+
+        #region GetDataTableListByStoredProcedure
+        [HttpPost]
+        [Authorize]
+        [Route("api/{type}/Data/GetDataTableListBySp")]
+        public async Task<IActionResult> GetDataTableListBySp(DbCallStoredProcedureInput obj, string type)
+        {
+            var objRes = new APIResponse<List<DataTable>>();
+            string fileName = type + "_" + obj.CompId;
+            string conString = "";
+            if (obj != null)
+            {
+                try
+                {
+                    var repository = _repositoryFactory.CreateRepository(type);
+                    List<DataTable> dt = await repository.GetMultipleResultSetsBySP(obj.SPName, obj.Param, obj.CompId);
+
+                    objRes.data = dt;
+                    objRes.status = 1;
+                    objRes.sMessage = "success";
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.LogError(fileName, ex.InnerException.Message, ex);
                     objRes.status = 0;
                     objRes.sMessage = ex.Message;
                 }
@@ -228,6 +264,37 @@ namespace ExtModule.API.Controllers
                     objRes.sMessage = ex.Message;
                 }
             }
+            return Ok(objRes);
+
+        }
+
+        #endregion
+        #region GetItemImage
+        //uses vmcore view
+        [HttpPost]
+        [Authorize]
+        [Route("api/{type}/Data/GetItemImage")]
+        public async Task<IActionResult> GetItemImage(DbCallItemImage obj,string type)
+        {
+            var objRes = new APIResponse<Hashtable>();
+
+            string conString = "";
+            
+                try
+                {
+                   
+                    Hashtable h = await _repositoryERP.GetItemImage(obj.compId, obj.iProductId);
+
+                    objRes.data = h;
+                    objRes.status = 1;
+                    objRes.sMessage = "success";
+                }
+                catch (Exception ex)
+                {
+                    objRes.status = 0;
+                    objRes.sMessage = ex.Message;
+                }
+            
             return Ok(objRes);
 
         }
@@ -474,6 +541,7 @@ namespace ExtModule.API.Controllers
                 }
                 catch (Exception ex)
                 {
+                    
                     objRes.status = 0;
                     objRes.sMessage = ex.Message;
                 }

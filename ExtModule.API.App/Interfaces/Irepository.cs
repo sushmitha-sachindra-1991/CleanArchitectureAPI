@@ -11,6 +11,7 @@ namespace ExtModule.API.Application.Interfaces
     public interface IRepository
     {
         Task<DataTable> GetDataTableByStoredProcedure(string spName, Hashtable Params, string Compid);
+        Task<List<DataTable>> GetMultipleResultSetsBySP(string spName, Hashtable Params, string Compid);
         Task<string> GetScalarByStoredProcedure(string spName, Hashtable Params, string Compid);
         Task<DataTable> GetMasterData(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns);
         Task<DataTable> GetMasterData_M(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns);

@@ -22,6 +22,7 @@ namespace ExtModule.API.Infra.Repositories
             var claims = new[]
             {
             new Claim(ClaimTypes.Name, username)
+            
         };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Jwtkey));

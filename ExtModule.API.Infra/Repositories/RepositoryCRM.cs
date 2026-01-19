@@ -54,6 +54,48 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             return dt;
         }
+        public async Task<List<DataTable>> GetMultipleResultSetsBySP(string spName, Hashtable Params, string CompId)
+        {
+            var resultTables = new List<DataTable>();
+            string conString = GetConnectionString(CompId);
+
+            SqlConnection con = new SqlConnection(conString);
+
+            try
+            {
+                SqlCommand cmd = new SqlCommand(spName, con);
+                if (Params != null)
+                {
+                    foreach (DictionaryEntry s in Params)
+                    {
+
+                        cmd.Parameters.AddWithValue("@" + s.Key, s.Value);
+                    }
+                }
+
+                cmd.CommandType = CommandType.StoredProcedure;
+                await con.OpenAsync();
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                {
+                    do
+                    {
+                        var dt = new DataTable();
+                        dt.Load(reader);
+                        resultTables.Add(dt);
+                    } while (!reader.IsClosed && await reader.NextResultAsync());
+                }
+            }
+            catch (Exception ex)
+            {
+                //ErrLog(ex, "DevLib.GetDataTableByStoredProcedure(" + spName + ")");
+            }
+            finally
+            {
+                con.Close();
+                con.Dispose();
+            }
+            return resultTables;
+        }
         public async Task<DataSet> GetDataSetByStoredProcedure(string spName, Hashtable Params, string CompId)
         {
             var ds = new DataSet();

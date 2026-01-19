@@ -68,6 +68,12 @@ namespace ExtModule.API.Model.DataRequest
         public string CompId { get; set; }
       
     }
+    public class DbCallItemImage
+    {
+        public int iProductId { get; set; }
+        public string compId { get; set; }
+
+    }
     public class DbCallMasterInput
     {
         public int MasterTypeId { get; set; }
