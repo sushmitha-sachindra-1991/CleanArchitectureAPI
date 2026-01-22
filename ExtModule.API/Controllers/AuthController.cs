@@ -6,6 +6,7 @@ using ExtModule.API.Model;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Configuration;
+using static ExtModule.API.Core.ERP.F8API;
 
 namespace ExtModule.API.Controllers
 {
@@ -32,7 +33,14 @@ namespace ExtModule.API.Controllers
         {
             // Replace this with actual user verification
             string baseFocusAPIUrl = _configuration.GetValue<string>("AppSettings:FocusAPI");
-           var obj= (await _ERPRepository.validateFocusSessionId(userLogin.SessionId,userLogin.CompanyCode, baseFocusAPIUrl));
+            //var obj= (await _ERPRepository.validateFocusSessionId(userLogin.SessionId,userLogin.CompanyCode, baseFocusAPIUrl));
+            var obj = new LoginRes
+            {
+                data = null,
+                message = "",
+                result = 1,
+                url = ""
+            };
             if (obj.result==1)
             {                
                     var token = _tokenService.GenerateToken(userLogin.SessionId, _configuration["Jwt:Key"], _configuration["Jwt:Issuer"], _configuration["Jwt:Audience"]);

@@ -57,7 +57,7 @@ namespace ExtModule.API.Controllers
                 try
                 {                    
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetDataTableByStoredProcedure(obj.SPName, obj.Param, obj.CompId);
+                    DataTable dt = await repository.GetDataTableByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -90,7 +90,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    List<DataTable> dt = await repository.GetMultipleResultSetsBySP(obj.SPName, obj.Param, obj.CompId);
+                    List<DataTable> dt = await repository.GetMultipleResultSetsBySPAsync(obj.SPName, obj.Param, obj.CompId);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -122,7 +122,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetDataTableByView(obj.ViewName,obj.Columns,obj.Condition,obj.Ordercolumn,  obj.CompId);
+                    DataTable dt = await repository.GetDataTableByViewAsync(obj.ViewName,obj.Columns,obj.Condition,obj.Ordercolumn,  obj.CompId);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -154,7 +154,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetDataTableByStoredProcedure(obj.SPName, obj.Param, obj.CompId);
+                    DataTable dt = await repository.GetDataTableByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -186,7 +186,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string val = await repository.GetScalarByStoredProcedure(obj.SPName, obj.Param, obj.CompId);
+                    string val = await repository.GetScalarByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
 
                     objRes.data = val;
                     objRes.status = 1;
@@ -219,7 +219,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetMasterData(obj.MasterTypeId,obj.Columns,obj.Condition, obj.CompId,obj.Ordercolumn);
+                    DataTable dt = await repository.GetMasterDataAsync(obj.MasterTypeId,obj.Columns,obj.Condition, obj.CompId,obj.Ordercolumn);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -252,7 +252,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetMasterData_M(obj.MasterTypeId, obj.Columns, obj.Condition, obj.CompId, obj.Ordercolumn);
+                    DataTable dt = await repository.GetMasterData_MAsync(obj.MasterTypeId, obj.Columns, obj.Condition, obj.CompId, obj.Ordercolumn);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -269,37 +269,7 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-        #region GetItemImage
-        //uses vmcore view
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/GetItemImage")]
-        public async Task<IActionResult> GetItemImage(DbCallItemImage obj,string type)
-        {
-            var objRes = new APIResponse<Hashtable>();
-
-            string conString = "";
-            
-                try
-                {
-                   
-                    Hashtable h = await _repositoryERP.GetItemImage(obj.compId, obj.iProductId);
-
-                    objRes.data = h;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            
-            return Ok(objRes);
-
-        }
-
-        #endregion
+    
         #region GetDataScalarByFunction
         [HttpPost]
         [Authorize]
@@ -314,7 +284,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string val = await repository.GetScalarByFunc(obj.FuncName, obj.CompId);
+                    string val = await repository.GetScalarByFuncAsync(obj.FuncName, obj.CompId);
 
                     objRes.data = val;
                     objRes.status = 1;
@@ -332,37 +302,7 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-        #region InsertBySP
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/InsertBySP")]
-        public async Task<APIResponse<int>> InsertBySP(DbCallStoredProcedureInput obj, string type)
-        {
-            var objRes = new APIResponse<int>();
-
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.InsertByStoredProcedure(obj.SPName, obj.Param, obj.CompId));
-
-                    objRes.data = int.Parse(rows);
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return objRes;
-
-        }
-
-        #endregion
+      
 
         #region AddData
         [HttpPost]
@@ -378,7 +318,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.InsertToTable(obj.sTableName, obj.Param, obj.CompId));
+                    string rows = await (repository.InsertToTableAsync(obj.sTableName, obj.Param, obj.CompId));
 
                     objRes.data = int.Parse(rows);
                     objRes.status = 1;
@@ -409,7 +349,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.UpdateTable (obj.sTableName, obj.Param,obj.Condition, obj.CompId));
+                    string rows = await (repository.UpdateTableAsync (obj.sTableName, obj.Param,obj.Condition, obj.CompId));
 
                     objRes.data = int.Parse(rows);
                     objRes.status = 1;
@@ -440,7 +380,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.DeleteRowFromTable(obj.sTableName, obj.Condition, obj.CompId));
+                    string rows = await (repository.DeleteRowFromTableAsync(obj.sTableName, obj.Condition, obj.CompId));
 
                     objRes.data = int.Parse(rows);
                     objRes.status = 1;
@@ -457,37 +397,7 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-        #region BulkInsertBySP
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/BulkInsertBySP")]
-        public async Task<APIResponse<string>> BulkInsertBySP(DbCallBulkInputBySp obj, string type)
-        {
-            var objRes = new APIResponse<string>();
-
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.BulkInsertByStoredProcedure(obj.SPName, obj.Params, obj.CompId));
-
-                    objRes.data = rows;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return objRes;
-
-        }
-
-        #endregion
+     
         #region BulkInsertByTable
         [HttpPost]
         [Authorize]
@@ -502,7 +412,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.BulkInsertToTable (obj.TableName, obj.Params, obj.CompId));
+                    string rows = await (repository.BulkInsertToTableAsync (obj.TableName, obj.Params, obj.CompId));
 
                     objRes.data = rows;
                     objRes.status = 1;
@@ -533,7 +443,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    Hashtable res = await (repository.CreateAndBulkInsertToTable(obj.TableName, obj.Params,obj.Coloumns, obj.CompId));
+                    Hashtable res = await (repository.CreateAndBulkInsertToTableAsync(obj.TableName, obj.Params,obj.Coloumns, obj.CompId));
 
                     objRes.data = res["rows"].ToString();
                     objRes.status = 1;
@@ -566,7 +476,7 @@ namespace ExtModule.API.Controllers
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string res = await repository.GetScalarByStoredProcedure(obj.SPName, obj.Param, obj.CompId);
+                    string res = await repository.GetScalarByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
 
                     objRes.data = res;
                     objRes.status = 1;
@@ -584,104 +494,8 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-        #region GetScalar
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/DateToInt")]
-        public async Task<IActionResult> DateToInt(DbCallDateFormatInput obj, string type)
-        {
-            var objRes = new APIResponse<string>();
-            string fileName = type + "_" + obj.CompId;
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    string res = await repository.DateToInt(obj.date, obj.CompId);
+      
 
-                    objRes.data = res;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogError(fileName, ex.Message, ex);
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return Ok(objRes);
-
-        }
-
-        #endregion
-
-        #region SendEmail
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/SendEmail")]
-        public async Task<IActionResult> SendEmail(SendEmailInput obj, string type)
-        {
-            var objRes = new APIResponse<Hashtable>();
-            string fileName = type + "_" + obj.CompId;
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    Hashtable res = await repository.SendEmail(obj.sFrom,obj.sPassword,obj.sTo,obj.sCC,obj.sBCC,obj.sSubject,obj.sBody,obj.sAttachments,obj.SMPT_Host,obj.SMPT_Port, obj.CompId);
-
-                    objRes.data = res;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogError(fileName, ex.Message, ex);
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return Ok(objRes);
-
-        }
-
-        #endregion
-
-        #region SendEmailTest
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/SendEmailTest")]
-        public async Task<IActionResult> SendEmailTest(SendEmailInputTest obj, string type)
-        {
-            var objRes = new APIResponse<Hashtable>();
-            string fileName = type + "_" + obj.CompId;
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    Hashtable res = await repository.SendEmailTest( obj.CompId);
-
-                    objRes.data = res;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogError(fileName, ex.Message, ex);
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return Ok(objRes);
-
-        }
-
-        #endregion
 
     }
 }

@@ -6,6 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <InvariantGlobalization>true</InvariantGlobalization>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+	   <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
     <DocumentationFile>C:\Users\SUSHMITHA\Downloads\CleanArch-master\CleanArch-master\SwaggerXML\ExtModule.API.Swagger.xml</DocumentationFile>
   </PropertyGroup>
 

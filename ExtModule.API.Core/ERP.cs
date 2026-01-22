@@ -8,40 +8,40 @@ using System.Web.Configuration;
 
 namespace ExtModule.API.Core.ERP
 {
-    public  class F8API
+    public static class F8API
     {
        
 
-        public string urlVouchers =>  "/Transactions/Vouchers/";
+        public static  string UrlVouchers =>  "/Transactions/Vouchers/";
 
-        public string urlMastersList =>  "/List/Masters/";
+        public static  string UrlMastersList =>  "/List/Masters/";
 
-        public string urlQuery =>  "/utility/ExecuteSqlQuery";
+        public static  string UrlQuery =>  "/utility/ExecuteSqlQuery";
 
-        public string urlMasters =>  "/Masters/";
+        public static  string UrlMasters =>  "/Masters/";
 
-        public string urlScreen =>  "/Screen/Transactions/";
+        public static  string UrlScreen =>  "/Screen/Transactions/";
 
-        public string urlVocDelete =>  "/Transactions/";
-        public class loginRes
+        public static  string UrlVocDelete =>  "/Transactions/";
+        public class LoginRes
         {
-            public List<Data> data { get; set; }
+            public List<Data> Data { get; set; }
 
-            public int result { get; set; }
+            public int Result { get; set; }
 
-            public string message { get; set; }
+            public string Message { get; set; }
 
-            public string url { get; set; }
+            public string Url { get; set; }
         }
         public class PostResponse
         {
-            public string url { get; set; }
+            public string Url { get; set; }
 
-            public List<Hashtable> data { get; set; }
+            public List<Hashtable> Data { get; set; }
 
-            public int result { get; set; }
+            public int Result { get; set; }
 
-            public string message { get; set; }
+            public string Message { get; set; }
         }
         public class Data
         {
@@ -49,22 +49,22 @@ namespace ExtModule.API.Core.ERP
 
             public int EmployeeId { get; set; }
 
-            public string fSessionId { get; set; }
+            public string FSessionId { get; set; }
         }
         public class PostingData
         {
-            public List<Hashtable> data { get; set; }
+            public List<Hashtable> Data { get; set; }
 
             public PostingData()
             {
-                data = new List<Hashtable>();
+                Data = new List<Hashtable>();
             }
         }
     }
     public class FocusPostResponse<T>
     {
-        public int status { get; set; }
-        public string sMessage { get; set; }
+        public int Status { get; set; }
+        public string Message { get; set; }
         public T F8APIPost { get; set; }
 
     }

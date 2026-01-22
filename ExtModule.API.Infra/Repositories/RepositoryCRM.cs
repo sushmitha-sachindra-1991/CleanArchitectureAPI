@@ -14,300 +14,313 @@ using ExtModule.API.Application.Interfaces;
 using System.Data.SqlClient;
 using System.Net.Mail;
 using System.Net;
+using ExtModule.API.Logging;
+using Focus.DatabaseFactory;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace ExtModule.API.Infrastructure.Repositories
 {
     public class RepositoryCRM : ICRMRepository
     {
-        public async Task<DataTable> GetDataTableByStoredProcedure(string spName, Hashtable Params, string CompId)
+        string ErrLogName = "Error";
+       
+        public async Task<DataTable> GetDataTableByStoredProcedureAsync(string spName, Hashtable paramList, string compId)
         {
             var dt = new DataTable();
-            string conString = GetConnectionString(CompId);
-
-            SqlConnection con = new SqlConnection(conString);
-
+            string conString = GetConnectionString(compId);
             try
             {
-                SqlCommand cmd = new SqlCommand(spName, con);
-                if (Params != null)
-                {
-                    foreach (DictionaryEntry s in Params)
+                Logger.Instance.LogInfo("Info", "Opening connection");
+                using var con=new SqlConnection(conString);
+                using var cmd = new SqlCommand(spName, con);
+                    Logger.Instance.LogInfo("Info", "Sp Name  " + spName);
+                    if (paramList != null)
                     {
-
-                        cmd.Parameters.AddWithValue("@" + s.Key, s.Value);
+                        foreach (DictionaryEntry s in paramList)
+                        {
+                            cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                            Logger.Instance.LogInfo("Info", "Key  " + s.Key + " Value " + s.Value.ToString());
+                        }
                     }
-                }
 
-                cmd.CommandType = CommandType.StoredProcedure;
-                con.Open();
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                da.Fill(dt);
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    int ConnTimeOut = 600;
+                    cmd.CommandTimeout = ConnTimeOut;
+                    await con.OpenAsync();
+
+                    using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                    {
+                        dt.Load(reader);
+                    }
+                    //SqlDataAdapter da = new SqlDataAdapter(cmd);
+                    //da.Fill(dt);
+                
+                Logger.Instance.LogInfo("Info", " connection closed");
             }
             catch (Exception ex)
             {
-                //ErrLog(ex, "DevLib.GetDataTableByStoredProcedure(" + spName + ")");
+                Logger.Instance.LogError("Error", "GetDataTableByStoredProcedure", ex);
+                throw new CustomException("GetDataTableByStoredProcedure", ex);
+
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+
             return dt;
         }
-        public async Task<List<DataTable>> GetMultipleResultSetsBySP(string spName, Hashtable Params, string CompId)
+
+        public async Task<List<DataTable>> GetMultipleResultSetsBySPAsync(string spName, Hashtable paramList, string compId)
         {
             var resultTables = new List<DataTable>();
-            string conString = GetConnectionString(CompId);
-
-            SqlConnection con = new SqlConnection(conString);
+            string conString = GetConnectionString(compId);
 
             try
             {
-                SqlCommand cmd = new SqlCommand(spName, con);
-                if (Params != null)
-                {
-                    foreach (DictionaryEntry s in Params)
-                    {
+                using var con=new SqlConnection(conString);
+                using var cmd=new SqlCommand(spName, con);
+                
+                        if (paramList != null)
+                        {
+                            foreach (DictionaryEntry s in paramList)
+                            {
+                                cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                            }
+                        }
 
-                        cmd.Parameters.AddWithValue("@" + s.Key, s.Value);
-                    }
-                }
+                        cmd.CommandType = CommandType.StoredProcedure;
+                        cmd.CommandTimeout = 600;
 
-                cmd.CommandType = CommandType.StoredProcedure;
-                await con.OpenAsync();
-                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
-                {
-                    do
-                    {
-                        var dt = new DataTable();
-                        dt.Load(reader);
-                        resultTables.Add(dt);
-                    } while (!reader.IsClosed && await reader.NextResultAsync());
-                }
+                        await con.OpenAsync();
+                        using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                        {
+                            do
+                            {
+                                var dt = new DataTable();
+                                dt.Load(reader);
+                                resultTables.Add(dt);
+                            } while (!reader.IsClosed && await reader.NextResultAsync());
+                        }
+                    
+                
             }
             catch (Exception ex)
             {
-                //ErrLog(ex, "DevLib.GetDataTableByStoredProcedure(" + spName + ")");
+                throw new CustomException("GetMultipleResultSetsBySPAsync", ex);
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+
             return resultTables;
         }
-        public async Task<DataSet> GetDataSetByStoredProcedure(string spName, Hashtable Params, string CompId)
+        public async Task<DataSet> GetDataSetByStoredProcedureAsync(string spName, Hashtable paramList, string compId)
         {
             var ds = new DataSet();
-            string conString = GetConnectionString(CompId);
-
-            SqlConnection con = new SqlConnection(conString);
+            string conString = GetConnectionString(compId);
 
             try
             {
-                SqlCommand cmd = new SqlCommand(spName, con);
-                if (Params != null)
-                {
-                    foreach (DictionaryEntry s in Params)
+                using var con=new SqlConnection(conString);
+                
+                    using var cmd = new SqlCommand(spName, con);
+                    if (paramList != null)
                     {
+                        foreach (DictionaryEntry s in paramList)
+                        {
 
-                        cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                            cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
+                        }
                     }
-                }
 
-                cmd.CommandType = CommandType.StoredProcedure;
-                con.Open();
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                da.Fill(ds);
+                    cmd.CommandType = CommandType.StoredProcedure;
+                    int ConnTimeOut = 600;
+                    cmd.CommandTimeout = ConnTimeOut;
+                    await con.OpenAsync();
+
+                    await using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        ds.Load(reader, LoadOption.PreserveChanges, "Table1");
+                    }
+
+                
             }
             catch (Exception ex)
             {
-                //ErrLog(ex, "DevLib.GetDataTableByStoredProcedure(" + spName + ")");
+                throw new CustomException("GetDataSetByStoredProcedureAsync", ex);
             }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
+
             return ds;
         }
-
-        public async Task<string> GetScalarByStoredProcedure(string spName, Hashtable Params, string CompId)
+        public async Task<string> GetScalarByStoredProcedureAsync(string spName, Hashtable paramList, string compId)
         {
-            string retval = "";
-            string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+            string retVal = "";
+            string connStr = GetConnectionString(compId);
+
             try
             {
-                SqlCommand sqlCommand = new SqlCommand(spName, sqlConnection);
-                if (Params != null)
+                using (SqlConnection con = new SqlConnection(connStr))
                 {
-                    foreach (DictionaryEntry Param in Params)
+                    SqlCommand sqlCommand = new SqlCommand(spName, con);
+                    if (paramList != null)
                     {
-                        sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
+                        foreach (DictionaryEntry Param in paramList)
+                        {
+                            sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
+                        }
                     }
-                }
 
-                sqlCommand.CommandType = CommandType.StoredProcedure;
-                sqlConnection.Open();
-                retval = Convert.ToString(sqlCommand.ExecuteScalar());
+                    sqlCommand.CommandType = CommandType.StoredProcedure;
+                    await con.OpenAsync();
+
+                    object result = await sqlCommand.ExecuteScalarAsync();
+                    retVal = Convert.ToString(result);
+
+                }
             }
-            catch (Exception err)
+            catch (Exception ex)
             {
-                //ErrLog(err, "ExtModule.Api.GetScalarByStoredProcedure(" + spName + ")");
+                throw new CustomException("GetScalarByStoredProcedureAsync", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
+
+            return retVal;
 
         }
-        public async Task<string> GetScalarByFunc(string FunctionName, string CompId)
+        public async Task<DataTable> GetDataTableByViewAsync(
+    string viewName,
+    string[] columns,
+    string condition,
+    string[] orderColumns,
+    string compId)
+        {
+            var dt = new DataTable();
+            string conString = GetConnectionString(compId);
+
+            try
+            {
+                await using (var con = new SqlConnection(conString))
+                {
+                    var sql = new StringBuilder();
+                    sql.Append("SELECT ").Append(string.Join(",", columns))
+                       .Append(" FROM ").Append(viewName)
+                       .Append(" WHERE 1=1 ");
+
+                    if (!string.IsNullOrWhiteSpace(condition))
+                        sql.Append(" AND ").Append(condition);
+
+                    if (orderColumns != null && orderColumns.Length > 0)
+                        sql.Append(" ORDER BY ").Append(string.Join(",", orderColumns));
+
+                    await using (var cmd = new SqlCommand(sql.ToString(), con))
+                    {
+                        cmd.CommandType = CommandType.Text;
+                        cmd.CommandTimeout = 600;
+
+                        await con.OpenAsync();
+
+                        await using (var reader = await cmd.ExecuteReaderAsync())
+                        {
+                            dt.Load(reader);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("GetDataTableByViewAsync", ex);
+            }
+
+            return dt;
+        }
+
+        public async Task<DataTable> GetMasterDataAsync(int iMasterTypeId, string[] columnList, string condition, string compId, string[] orderColoumns)
+        {
+            DataTable dt;
+            string conString = GetConnectionString(compId);
+            Logger.Instance.LogInfo("Info", conString);
+
+            try
+            {
+
+                string text = "Select " + string.Join(",", columnList) + " From " + GetTableNameOfTag(iMasterTypeId, compId, conString) + " Where iStatus <> 5 and sCode <>'' ";
+                if (!string.IsNullOrEmpty(condition))
+                {
+                    text = text + " and " + condition;
+                }
+                if (orderColoumns != null)
+                {
+                    text = text + " order by " + string.Join(",", orderColoumns);
+                }
+                Logger.Instance.LogInfo("Info", text);
+                Logger.Instance.LogInfo("Info", compId);
+                dt = await GetDataTableByQueryAsync(text, compId);
+                if (dt.Rows.Count > 0)
+                {
+                    return dt;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError(ErrLogName, "GetMasterDataAsync", ex);
+                throw new CustomException("GetMasterDataAsync", ex);
+            }
+
+            return dt;
+        }
+        public async Task<DataTable> GetMasterData_MAsync(int iMasterTypeId, string[] coloumList, string condition, string compId, string[] orderColoumns)
+        {
+            var dt = new DataTable();
+
+            try
+            {
+                string conString = GetConnectionString(compId);
+                string text = "Select " + string.Join(",", coloumList) + " From " + GetTableNameOfTag_m(iMasterTypeId, compId, conString) + " Where iStatus <> 5 and sCode <>'' ";
+                if (!string.IsNullOrEmpty(condition))
+                {
+                    text = text + " and " + condition;
+                }
+                if (orderColoumns != null)
+                {
+                    text = text + " order by " + string.Join(",", orderColoumns);
+                }
+
+                dt = await GetDataTableByQueryAsync(text, compId);
+                if (dt.Rows.Count > 0)
+                {
+                    return dt;
+                }
+
+
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("GetMasterData_MAsync", ex);
+            }
+
+            return dt;
+        }
+        public async Task<string> GetScalarByFuncAsync(string FunctionName, string CompId)
         {
             var result = "";
             try
             {
                 string text = "";
                 text = "select dbo." + FunctionName;
-                result = GetScalarByQuery(text, CompId);
+                result = await GetScalarByQueryAsync(text, CompId);
+
             }
             catch (Exception err)
             {
-                //ErrLog(err, "DevLib.GetTableNameOfTag()");
+                throw err;
             }
 
-            return await Task.FromResult(result);
+            return result;
         }
-        public async Task<DataTable> GetMasterData(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns)
+
+        public async Task<string> BulkInsertToTableAsync(string tableName, List<Hashtable> lstParams, string compId)
         {
-            var dt = new DataTable();
-            string conString = GetConnectionString(CompId);
+            string retVal = "";
+            string connStr = GetConnectionString(compId);
 
-            SqlConnection con = new SqlConnection(conString);
-
-            try
-            {
-                string text = "Select " + string.Join(",", Columns) + " From " + GetTableNameOfTag(iMasterTypeId, CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
-                if (!string.IsNullOrEmpty(Condition))
-                {
-                    text = text + " and " + Condition;
-                }
-                if (OrderColoumns != null)
-                {
-                    text = text + " order by " + string.Join(",", OrderColoumns);
-                }
-                dt = GetDataTableByQuery(text, CompId);
-                if (dt.Rows.Count > 0)
-                {
-                    return dt;
-                }
-            }
-            catch (Exception ex)
-            {
-                //ErrLog(ex, "DevLib.GetDataTableByStoredProcedure(" + spName + ")");
-            }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
-            return dt;
-        }
-        public async Task<DataTable> GetMasterData_M(int iMasterTypeId, string[] Columns, string Condition, string CompId, string[] OrderColoumns)
-        {
-            var dt = new DataTable();
-            string conString = GetConnectionString(CompId);
-
-            SqlConnection con = new SqlConnection(conString);
-
-            try
-            {
-                string text = "Select " + string.Join(",", Columns) + " From " + GetTableNameOfTag_m(iMasterTypeId, CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
-                if (!string.IsNullOrEmpty(Condition))
-                {
-                    text = text + " and " + Condition;
-                }
-                if (OrderColoumns != null)
-                {
-                    text = text + " order by " + string.Join(",", OrderColoumns);
-                }
-
-                dt = GetDataTableByQuery(text, CompId);
-                if (dt.Rows.Count > 0)
-                {
-                    return dt;
-                }
-
-            }
-            catch (Exception ex)
-            {
-                throw new CustomException("GetMasterData", ex);
-            }
-            finally
-            {
-                con.Close();
-                con.Dispose();
-            }
-            return dt;
-        }
-        public async Task<string> InsertByStoredProcedure(string spName, Hashtable Params, string CompId)
-        {
-            string retval = "";
-            string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            try
-            {
-                SqlCommand sqlCommand = new SqlCommand(spName, sqlConnection);
-                if (Params != null)
-                {
-                    foreach (DictionaryEntry Param in Params)
-                    {
-                        sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
-                    }
-                }
-
-                sqlCommand.CommandType = CommandType.StoredProcedure;
-                sqlConnection.Open();
-                retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
-            }
-            catch (Exception err)
-            {
-                //ErrLog(err, "ExtModule.Api.GetScalarByStoredProcedure(" + spName + ")");
-            }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
-        }
-        public async Task<Hashtable> CreateAndBulkInsertToTable(string TableName, List<Hashtable> lstParams, Hashtable coloumns, string CompId)
-        {
-            Hashtable retval = new Hashtable();
-            string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            sqlConnection.Open();
-            SqlCommand sqlCommand = null;
             try
             {
                 string query = "";
-
-                //create table
-                query = "Create Table " + TableName + " (";
-                foreach (DictionaryEntry param in coloumns)
-                {
-                    query = query + param.Key.ToString() + " " + param.Value.ToString() + " , ";
-                }
-                query = query.TrimEnd(')');
-                query = query + ")";
-                sqlCommand = new SqlCommand(query, sqlConnection);
-
-                sqlCommand.CommandType = CommandType.Text;
-
-                int flag = (sqlCommand.ExecuteNonQuery());
-                if (flag > 0)
+                using (SqlConnection con = new SqlConnection(connStr))
                 {
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
@@ -320,268 +333,303 @@ namespace ExtModule.API.Infrastructure.Repositories
                             {
                                 if (Param.Value != null)
                                 {
+
+
                                     coulumnNames.Add(Param.Key.ToString());
                                     values.Add(Param.Value.ToString());
 
                                 }
                             }
                             //insert
-                            query = @"insert into " + TableName;
+                            query = @"insert into " + tableName;
                             string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
                             query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
-                            sqlCommand = new SqlCommand(query, sqlConnection);
+                            SqlCommand sqlCommand = new SqlCommand(query, con);
 
                             sqlCommand.CommandType = CommandType.Text;
-
-                            retval["rows"] = Convert.ToString(sqlCommand.ExecuteScalar());
-                            retval["message"] = "";
+                            await con.OpenAsync();
+                            object result = await sqlCommand.ExecuteScalarAsync();
+                            retVal = Convert.ToString(result);
                         }
                     }
 
-                }
-                else
-                {
 
-                    retval["rows"] = 0;
-                    retval["message"] = " table " + TableName + " could not be created";
-                    return retval;
                 }
+
 
             }
             catch (Exception ex)
             {
-                throw new CustomException("CreateAndBulkInsertToTable", ex);
+                throw new CustomException("BulkInsertToTableAsync", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
+
+            return retVal;
         }
-        public async Task<string> BulkInsertToTable(string TableName, List<Hashtable> lstParams, string CompId)
+        public async Task<Hashtable> CreateAndBulkInsertToTableAsync(string tableName, List<Hashtable> lstParams, Hashtable coloumns, string compId)
         {
-            string retval = "";
-            string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+            Hashtable retval = new Hashtable();
+            string connStr = GetConnectionString(compId);
+
+            Logger.Instance.LogInfo("EventLog", "ConnStr :" + connStr);
+            SqlCommand sqlCommand = null;
+            int flag = 0;
             try
             {
-                string query = "";
-
-                List<string> coulumnNames = new List<string>();
-                List<string> values = new List<string>();
-                if (lstParams != null)
+                using (SqlConnection con = new SqlConnection(connStr))
                 {
-
-                    foreach (Hashtable obj in lstParams)
+                    await con.OpenAsync();
+                    string query = "";
+                    //drop table
+                    string dropSql = $"DROP TABLE IF EXISTS [{tableName}]";
+                    await using (var dropCmd = new SqlCommand(dropSql, con))
                     {
-                        foreach (DictionaryEntry Param in obj)
+                        await dropCmd.ExecuteNonQueryAsync();
+                    }
+
+
+                    //create table
+                    var createSql = new StringBuilder();
+                    createSql.Append($"CREATE TABLE [{tableName}] (");
+
+                    foreach (DictionaryEntry col in coloumns)
+                    {
+                        createSql.Append($"[{col.Key}] {col.Value},");
+                    }
+
+                    createSql.Length--; // remove last comma
+                    createSql.Append(")");
+
+                    await using (var createCmd = new SqlCommand(createSql.ToString(), con))
+                    {
+                        await createCmd.ExecuteNonQueryAsync();
+                    }
+
+                    if (flag != 0)
+                    {
+
+                        if (lstParams != null)
+                        {
+
+                            foreach (Hashtable obj in lstParams)
+                            {
+                                List<string> coulumnNames = new List<string>();
+                                List<string> values = new List<string>();
+                                foreach (DictionaryEntry Param in obj)
+                                {
+                                    if (Param.Value != null)
+                                    {
+                                        coulumnNames.Add(Param.Key.ToString());
+                                        Logger.Instance.LogInfo("EventLog", "key :" + Param.Key);
+                                        Logger.Instance.LogInfo("EventLog", "value :" + Param.Value);
+                                        values.Add(Param.Value.ToString());
+
+                                    }
+                                }
+
+                                //insert
+                                query = @"insert into " + tableName;
+                                string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
+                                Logger.Instance.LogInfo("EventLog", valueList);
+                                query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
+                                sqlCommand = new SqlCommand(query, con);
+
+                                sqlCommand.CommandType = CommandType.Text;
+
+                                retval["rows"] = (sqlCommand.ExecuteNonQuery());
+                                retval["message"] = "";
+                            }
+                        }
+
+                    }
+                    else
+                    {
+
+                        retval["rows"] = 0;
+                        retval["message"] = " table " + tableName + " could not be created";
+                        return retval;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogError("error", ex.InnerException.Message, ex);
+                throw new CustomException("CreateAndBulkInsertToTableAsync", ex);
+            }
+
+            return retval;
+        }
+        public async Task<string> InsertToTableAsync(string tableName, Hashtable paramList, string compId)
+        {
+            string retval = "";
+            string connStr = GetConnectionString(compId);
+
+            try
+            {
+                using (SqlConnection con = new SqlConnection(connStr))
+                {
+                    string query = "";
+
+                    List<string> coulumnNames = new List<string>();
+                    List<string> values = new List<string>();
+                    if (paramList != null)
+                    {
+
+
+                        foreach (DictionaryEntry Param in paramList)
                         {
                             if (Param.Value != null)
                             {
-
-
                                 coulumnNames.Add(Param.Key.ToString());
                                 values.Add(Param.Value.ToString());
 
                             }
                         }
                         //insert
-                        query = @"insert into " + TableName;
+                        query = @"insert into " + tableName;
                         string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
                         query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
-                        SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
+                        SqlCommand sqlCommand = new SqlCommand(query, con);
 
                         sqlCommand.CommandType = CommandType.Text;
-                        sqlConnection.Open();
-                        retval = Convert.ToString(sqlCommand.ExecuteScalar());
-                    }
-
-
-                }
-
-
-            }
-            catch (Exception ex)
-            {
-                throw new CustomException("BulkInsertToTable", ex);
-            }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
-        }
-        public async Task<string> InsertToTable(string TableName, Hashtable Params, string CompId)
-        {
-            string retval = "";
-            string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            try
-            {
-                string query = "insert into " + TableName;
-                string[] coulumnName = new string[Params.Count];
-                string[] values = new string[Params.Count];
-                if (Params != null)
-                {
-                    int i = 0;
-                    foreach (DictionaryEntry Param in Params)
-                    {
-                        coulumnName[i] = Param.Key.ToString();
-                        values[i] = Param.Value.ToString();
-
+                        await con.OpenAsync();
+                        object result = await sqlCommand.ExecuteScalarAsync();
+                        retval = Convert.ToString(result);
                     }
                 }
-                query = query + "(" + string.Join(',', coulumnName) + ") values (" + string.Join(',', values) + ")";
-                SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
-
-                sqlCommand.CommandType = CommandType.Text;
-                sqlConnection.Open();
-                retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
-            }
-            catch (Exception ex)
-            {
-                throw new CustomException("InsertToTable", ex);
-            }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
-        }
-        public async Task<string> DeleteRowFromTable(string TableName, string condition, string CompId)
-        {
-            string retval = "";
-            string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            try
-            {
-                string query = "";
-
-                List<string> coulumnNames = new List<string>();
-                List<string> values = new List<string>();
-                if (!string.IsNullOrEmpty(TableName))
-                {
-
-                    //delete
-                    query = @"delete  " + TableName;
-
-                    query = query + " where " + condition;
-                    SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
-
-                    sqlCommand.CommandType = CommandType.Text;
-                    sqlConnection.Open();
-                    retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
-
-                }
 
 
             }
             catch (Exception ex)
             {
-                throw new CustomException("InsertToTable", ex);
+                throw new CustomException("InsertToTableAsync", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
+
+            return retval;
         }
-        public async Task<string> UpdateTable(string TableName, Hashtable Params, string condition, string CompId)
+
+        public async Task<string> UpdateTableAsync(string tableName, Hashtable paramList, string condition, string compId)
         {
             string retval = "";
-            string ConnStr = GetConnectionString(CompId);
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+            string connStr = GetConnectionString(compId);
+
             try
             {
-                string query = "";
-
-                List<string> coulumnNames = new List<string>();
-                List<string> values = new List<string>();
-                if (Params != null)
+                using (SqlConnection con = new SqlConnection(connStr))
                 {
+                    string query = "";
 
-                    query = query + "update " + TableName + " set ";
-                    string valueList = "";
-                    foreach (DictionaryEntry Param in Params)
+                    List<string> coulumnNames = new List<string>();
+                    List<string> values = new List<string>();
+                    if (paramList != null)
                     {
-                        if (Param.Value != null)
+
+                        query = query + "update " + tableName + " set ";
+                        string valueList = "";
+                        foreach (DictionaryEntry Param in paramList)
                         {
+                            if (Param.Value != null)
+                            {
 
-                            valueList = valueList + Param.Key.ToString() + "=" + $"'{Param.Value}',";
+                                valueList = valueList + Param.Key.ToString() + "=" + $"'{Param.Value}',";
+                            }
                         }
+                        valueList = valueList.TrimEnd(',');
+
+                        query = query + valueList + " where 1=1 and " + condition;
+                        SqlCommand sqlCommand = new SqlCommand(query, con);
+
+                        sqlCommand.CommandType = CommandType.Text;
+                        await con.OpenAsync();
+                        object result = await sqlCommand.ExecuteNonQueryAsync();
+                        retval = Convert.ToString(result);
+
                     }
-                    valueList = valueList.TrimEnd(',');
-
-                    query = query + valueList + " where 1=1 and " + condition;
-                    SqlCommand sqlCommand = new SqlCommand(query, sqlConnection);
-
-                    sqlCommand.CommandType = CommandType.Text;
-                    sqlConnection.Open();
-                    retval = Convert.ToString(sqlCommand.ExecuteNonQuery());
-
                 }
 
 
             }
             catch (Exception ex)
             {
-                throw new CustomException("InsertToTable", ex);
+                throw new CustomException("UpdateTableAsync", ex);
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(retval);
-        }
-        public async Task<string> BulkInsertByStoredProcedure(string spName, List<Hashtable> Params, string CompId)
-        {
 
-            int rows = 0;
-            string ConnStr = GetConnectionString(CompId);
-            SqlCommand sqlCommand = null;
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
+            return retval;
+        }
+        public async Task<string> DeleteRowFromTableAsync(string tableName, string condition, string compId)
+        {
+            string retval = "";
+            string connStr = GetConnectionString(compId);
+
             try
             {
-                foreach (Hashtable s in Params)
+                using (SqlConnection con = new SqlConnection(connStr))
                 {
-                    sqlCommand = new SqlCommand(spName, sqlConnection);
-                    if (Params != null)
+                    string query = "";
+
+                    List<string> coulumnNames = new List<string>();
+                    List<string> values = new List<string>();
+                    if (!string.IsNullOrEmpty(tableName))
                     {
-                        foreach (DictionaryEntry Param in s)
-                        {
-                            sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
-                        }
+
+                        //delete
+                        query = @"delete  " + tableName;
+
+                        query = query + " where " + condition;
+                        SqlCommand sqlCommand = new SqlCommand(query, con);
+
+                        sqlCommand.CommandType = CommandType.Text;
+                        await con.OpenAsync();
+                        object result = await (sqlCommand.ExecuteNonQueryAsync());
+                        retval = Convert.ToString(result);
+
                     }
 
-                    sqlCommand.CommandType = CommandType.StoredProcedure;
-                    sqlConnection.Open();
-                    rows = rows + (sqlCommand.ExecuteNonQuery());
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new CustomException("DeleteRowFromTableAsync", ex);
+            }
+
+            return retval;
+        }
+
+        #region common functions
+        public string GetConnectionString(string CompId)
+        {
+            string rtnConnStr = "";
+            try
+            {
+                if (Convert.ToString(CompId) == "")
+                {
+                    CompId = "36";
                 }
 
+                string CompCode = DatabaseWrapper.GetCompanyCode(Convert.ToInt32(CompId));
+                string[] SqlCon = DatabaseWrapper.GetDatabaseDetails();
+
+                string SQLServer = SqlCon[0];
+                string SQLUser = SqlCon[1];
+                string SQLPW = SqlCon[2];
+
+                rtnConnStr = "server=" + SQLServer + ";Database=Focus8" + CompCode + " ;Integrated Security=false;User ID=" + SQLUser + ";password=" + SQLPW;
+
             }
-            catch (Exception err)
+            catch (Exception ex)
             {
-                //ErrLog(err, "ExtModule.Api.GetScalarByStoredProcedure(" + spName + ")");
+                //ErrLog(ex, "DevLib.GetConnectionString()");
+                //throw;
             }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-            return await Task.FromResult(rows.ToString());
+            return rtnConnStr;
         }
-        public async Task<string> DateToInt(string sDate, string CompId, string connString = "")
+
+        private string GetTableNameOfTag(int iMasterTypeId, string CompId, string connString = "")
         {
-            var result = "";
+            string result = "";
             try
             {
                 string text = "";
-                text = "select dbo.datetoint('" + Convert.ToString(sDate) + "')";
+                text = "Select 'v' + sModule +'_' + sMasterName [TableName] From cCore_MasterDef Where iMasterTypeId = " + Convert.ToString(iMasterTypeId);
                 result = GetScalarByQuery(text, CompId);
             }
             catch (Exception err)
@@ -589,241 +637,139 @@ namespace ExtModule.API.Infrastructure.Repositories
                 //ErrLog(err, "DevLib.GetTableNameOfTag()");
             }
 
-            return await Task.FromResult(result);
+            return result;
         }
-        public async Task<DataTable> GetDataTableByView(string ViewName, string[] Columns, string Condition, string[] OrderColoumns, string CompId)
+        private string GetTableNameOfTag_m(int iMasterTypeId, string CompId, string connString = "")
         {
-            var dt = new DataTable();
-            string conString = GetConnectionString(CompId);
+            string result = "";
+            try
+            {
+                string text = "";
+                text = "Select 'vm' + sModule +'_' + sMasterName [TableName] From cCore_MasterDef Where iMasterTypeId = " + Convert.ToString(iMasterTypeId);
+                result = GetScalarByQuery(text, CompId);
+            }
+            catch (Exception err)
+            {
+                //ErrLog(err, "DevLib.GetTableNameOfTag()");
+            }
 
-            SqlConnection con = new SqlConnection(conString);
+            return result;
+        }
+
+
+        public async Task<string> GetScalarByQueryAsync(string strQry, string compId)
+        {
+            string retVal = "";
+
+            string ConnStr = GetConnectionString(compId);
+
+
 
             try
             {
-                string text = "Select " + string.Join(",", Columns) + " From " + ViewName + " Where 1=1 ";
-                if (!string.IsNullOrEmpty(Condition))
+                using (SqlConnection con = new SqlConnection(ConnStr))
                 {
-                    text = text + " and " + Condition;
+                    SqlCommand sqlCommand = new SqlCommand(strQry, con);
+                    await con.OpenAsync();
+                    object result = await sqlCommand.ExecuteScalarAsync();
+                    retVal = Convert.ToString(result);
                 }
-                if (OrderColoumns != null)
-                {
-                    text = text + " order by " + string.Join(",", OrderColoumns);
-                }
-                SqlCommand cmd = new SqlCommand(text, con);
+            }
+            catch (Exception err)
+            {
+                // ErrLog(err, "DevLib.GetScalarByQuery()");
+            }
 
 
-                cmd.CommandType = CommandType.Text;
-                int ConnTimeOut = 600;
-                cmd.CommandTimeout = ConnTimeOut;
-                con.Open();
-                SqlDataAdapter da = new SqlDataAdapter(cmd);
-                da.Fill(dt);
+            return retVal;
+        }
+        public string GetScalarByQuery(string strQry, string CompId)
+        {
+            string result = "";
+
+            string ConnStr = GetConnectionString(CompId);
+
+
+
+            try
+            {
+                using (SqlConnection con = new SqlConnection(ConnStr))
+                {
+                    SqlCommand sqlCommand = new SqlCommand(strQry, con);
+                    con.Open();
+                    result = Convert.ToString(sqlCommand.ExecuteScalar());
+                }
+            }
+            catch (Exception err)
+            {
+                // ErrLog(err, "DevLib.GetScalarByQuery()");
+            }
+
+
+            return result;
+        }
+        public async Task<DataTable> GetDataTableByQueryAsync(string query, string compId = "")
+        {
+            var dt = new DataTable();
+            string connStr = GetConnectionString(compId);
+
+            try
+            {
+                using (var con = new SqlConnection(connStr))
+                using (var cmd = new SqlCommand(query, con))
+                {
+                    cmd.CommandTimeout = 6000;
+
+                    await con.OpenAsync();
+
+                    await using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        dt.Load(reader);
+                    }
+                }
             }
             catch (Exception ex)
             {
-                throw new CustomException("GetDataTableByView", ex);
+                Logger.Instance.LogError(ErrLogName,"GetDataTableByQueryAsync", ex);
+                // Log your exception here
+                // ErrLog(ex, $"GetDataTableByQueryAsync({query})");
+                throw;
+            }
 
+            return dt;
+        }
+        public DataTable GetDataTableByQuery(string strQry, string CompId = "")
+        {
+
+            DataTable dataTable = new DataTable();
+            string ConnStr = GetConnectionString(CompId);
+
+
+            try
+            {
+                using (SqlConnection con = new SqlConnection(ConnStr))
+                {
+                    SqlCommand sqlCommand = new SqlCommand(strQry, con);
+                    int commandTimeout = 6000;
+                    sqlCommand.CommandTimeout = commandTimeout;
+                    con.Open();
+                    SqlDataAdapter sqlDataAdapter = new SqlDataAdapter(sqlCommand);
+
+                    sqlDataAdapter.Fill(dataTable);
+                }
+            }
+            catch (Exception err)
+            {
+                // ErrLog(err, "DevLibWeb.GetDataTableByQuery(" + strQry + ")");
             }
             finally
             {
-                con.Close();
-                con.Dispose();
             }
-            return dt;
+
+            //EventLog("GetDataTable - OUT");
+            return dataTable;
         }
-        #region Email
-        /// <summary>
-        /// Send Email
-        /// </summary>
 
-        /// <param name="To">To sloginuserName [string array]</param>
-        /// <param name="Cc">Cc sloginuserName [string array]</param>
-        /// <param name="Bcc">BCc sloginuserName [string array]</param>
-        /// <param name="Subject">Subject</param>
-        /// <param name="Body">Body</param>
-        /// <param name="Attachment">Attachment give physical path [string array]</param>
-        /// <param name="SMPT_Host">SMPT Host, set "" to get value from Preferences </param>
-        /// <param name="SMPT_Port">SMPT Port, set 0 to get value from Preferences </param>
-        /// <returns>Return status,message as hashtable</returns>
-        public async Task<Hashtable> SendEmail(string From,string Password,string[] To, string[] Cc, string[] Bcc, string Subject, string Body, string[] Attachment, string SMPT_Host, int SMPT_Port, string CompId = "")
-        {
-
-            Hashtable response = new Hashtable();
-            try
-            {
-                if (SMPT_Port == 0)
-                {
-                    SMPT_Port = 587;
-                }
-                if (SMPT_Host == "")
-                {
-                    SMPT_Host = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 0", CompId);
-                }
-
-                if (SMPT_Host == "")
-                {
-                    response["status"] = 0;
-                    response["Message"] = "SMTP Address not defined";
-
-
-                    return response;
-                }
-                //GetCompany details
-                //string sCompanyName = GetScalarByQuery("select sCompanyName from Focus8ERP.dbo.mcore_company where iCompanyId=" + CompId, CompId);
-                //Hashtable obj = GetCompanyDetails(sCompanyName);
-                //string From = (string)obj["FromEmailId"];
-                //string Password = (string)obj["FromPassword"];
-                if (From == "")
-                {
-                    From = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 1", CompId);
-                }
-                if (Password == "")
-                {
-                    Password = GetScalarByQuery("Select sValue From cCore_PreferenceText_0 Where iCategory = 13 and iFieldId = 2", CompId);
-                }
-
-
-
-                // '''''''''''''''''''''''''''''''''''''''''Sending Mail''''''''''''''''''''''''''''''''
-                // sendMail()
-
-                MailMessage mail = new MailMessage();
-
-
-                mail.From = new MailAddress(From);
-
-                if (To.Length == 0)
-                {
-
-                    response["status"] = 0;
-                    response["Message"] = "To Email ID not defined";
-                    return response;
-
-                }
-
-                foreach (string s in To)
-                {
-                    if (s.Trim() != "")
-                    {
-                        string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
-                        mail.To.Add(new MailAddress(sEmail));
-                    }
-                }
-
-                foreach (string s in Cc)
-                {
-                    if (s.Trim() != "")
-                    {
-                        string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
-                        mail.CC.Add(new MailAddress(sEmail));
-                    }
-                }
-
-                foreach (string s in Bcc)
-                {
-                    if (s.Trim() != "")
-                    {
-                        string sEmail = GetScalarByQuery("select sEmail from mSec_Users where sLoginName='" + s + "'", CompId);
-                        mail.Bcc.Add(new MailAddress(sEmail));
-                    }
-                }
-
-                // ''''''''''''''''''''''''''''''Email Subject''''''''''''''''''''''''''''''''''''''''
-                if ((Subject == ""))
-                {
-                    mail.Subject = " ";
-                }
-                else
-                {
-                    mail.Subject = Subject;
-                }
-
-                // ''''''''''''''''''''''''''''''Email Body''''''''''''''''''''''''''''''''''''''''
-
-                if (Body == "")
-                {
-                    mail.Body = " ";
-                }
-                else
-                {
-                    mail.Body = Body;
-                }
-
-                // ''''''''''''''''''''''''''''''Email Attachment'''''''''''''''''''''''''
-                foreach (string s in Attachment)
-                {
-                    if (s != "")
-                    {
-                        mail.Attachments.Add(new Attachment(s));
-                    }
-                }
-
-
-                using (SmtpClient mailClient = new SmtpClient())
-                {
-                    mailClient.Host = SMPT_Host;
-                    mailClient.Port = SMPT_Port;
-                    mailClient.DeliveryMethod = SmtpDeliveryMethod.Network;
-                    mailClient.UseDefaultCredentials = false;
-                    mailClient.Credentials = new NetworkCredential(From, Password);
-                    mailClient.EnableSsl = true;
-                    mail.DeliveryNotificationOptions = DeliveryNotificationOptions.OnFailure;
-                    mailClient.Send(mail);
-                    response["status"] = 1;
-                    response["message"] = "Email sent Successfully";
-                    return response;
-                }
-
-            }
-            catch (Exception ex)
-            {
-                response["status"] = 0;
-                response["message"] = ex.Message;
-
-            }
-            return response;
-        }
-        #endregion
-        #region Email Test
-        public async Task<Hashtable> SendEmailTest(string CompId = "")
-        {
-
-            Hashtable response = new Hashtable();
-
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls
-                                | SecurityProtocolType.Tls11
-                                | SecurityProtocolType.Tls12;
-            //test
-            using (var message = new MailMessage())
-            {
-                message.To.Add(new MailAddress("sushmi46@gmail.com", "sushmita"));
-                message.From = new MailAddress("infofocusextdevfocus@gmail.com", "info_focus_ext_dev");
-                message.Subject = "My subject";
-                message.Body = "My message";
-                message.IsBodyHtml = false; // change to true if body msg is in html
-
-                using (var client = new SmtpClient("smtp.gmail.com"))
-                {
-                    client.UseDefaultCredentials = false;
-                    client.Port = 465;
-                    client.Credentials = new NetworkCredential("infofocusextdevfocus@gmail.com", "focus@1234");
-                    client.EnableSsl = true;
-
-                    try
-                    {
-                        await client.SendMailAsync(message); // Email sent
-                    }
-                    catch (Exception e)
-                    {
-                        response["status"] = 0;
-                        response["message"] = e.Message;
-                    }
-                }
-            }
-            return response;
-        }
-        #endregion
-        #region Common functions
         public Hashtable GetCompanyDetails(string company)
         {
             Hashtable obj = new Hashtable();
@@ -858,141 +804,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             return obj;
         }
-        public string GetConnectionString(string CompId)
-        {
-            string constring = "";
-            try
-            {
-                CRM.ServerDetail objSer = GetCompanyServerDetailsById(CompId, "config", "ServerConfig");
-                constring = "server=" + objSer.ServerName + ";Database=" + objSer.DatabaseName + " ;Integrated Security=false;User ID=" + objSer.UserID + ";password=" + objSer.password;
-            }
-            catch (Exception ex)
-            {
 
-            }
-            return constring;
-        }
-        public string GetScalarByQuery(string strQry, string CompId)
-        {
-            string result = "";
-
-            string ConnStr = GetConnectionString(CompId);
-
-
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            try
-            {
-                SqlCommand sqlCommand = new SqlCommand(strQry, sqlConnection);
-                sqlConnection.Open();
-                result = Convert.ToString(sqlCommand.ExecuteScalar());
-            }
-            catch (Exception err)
-            {
-                // ErrLog(err, "DevLib.GetScalarByQuery()");
-            }
-            finally
-            {
-                sqlConnection.Close();
-                sqlConnection.Dispose();
-            }
-
-            return result;
-        }
-        private string GetTableNameOfTag_m(int iMasterTypeId, string CompId, string connString = "")
-        {
-            string result = "";
-            try
-            {
-                string text = "";
-                text = "Select 'vm' + sModule +'_' + sMasterName [TableName] From cCore_MasterDef Where iMasterTypeId = " + Convert.ToString(iMasterTypeId);
-                result = GetScalarByQuery(text, CompId);
-            }
-            catch (Exception err)
-            {
-                //ErrLog(err, "DevLib.GetTableNameOfTag()");
-            }
-
-            return result;
-        }
-        private string GetTableNameOfTag(int iMasterTypeId, string CompId, string connString = "")
-        {
-            string result = "";
-            try
-            {
-                string text = "";
-                text = "Select 'v' + sModule +'_' + sMasterName [TableName] From cCore_MasterDef Where iMasterTypeId = " + Convert.ToString(iMasterTypeId);
-                result = GetScalarByQuery(text, CompId);
-            }
-            catch (Exception err)
-            {
-                //ErrLog(err, "DevLib.GetTableNameOfTag()");
-            }
-
-            return result;
-        }
-        public DataTable GetDataTableByQuery(string strQry, string CompId = "")
-        {
-
-            DataTable dataTable = new DataTable();
-            string ConnStr = GetConnectionString(CompId);
-
-            SqlConnection sqlConnection = new SqlConnection(ConnStr);
-            try
-            {
-                SqlCommand sqlCommand = new SqlCommand(strQry, sqlConnection);
-                int commandTimeout = 6000;
-                sqlCommand.CommandTimeout = commandTimeout;
-                sqlConnection.Open();
-                SqlDataAdapter sqlDataAdapter = new SqlDataAdapter(sqlCommand);
-
-                sqlDataAdapter.Fill(dataTable);
-
-            }
-            catch (Exception err)
-            {
-                // ErrLog(err, "DevLibWeb.GetDataTableByQuery(" + strQry + ")");
-            }
-            finally
-            {
-            }
-
-            //EventLog("GetDataTable - OUT");
-            return dataTable;
-        }
-        public CRM.ServerDetail GetCompanyServerDetailsById(string compId, string fileName, string rootNode)
-        {
-            CRM.ServerDetail serverDetail = new CRM.ServerDetail();
-            try
-            {
-                if (!string.IsNullOrEmpty(compId))
-                {
-                    XmlDocument xmlDocument = new XmlDocument();
-                    string directoryName = Path.GetDirectoryName(Assembly.GetExecutingAssembly().GetName().CodeBase);
-                    xmlDocument.Load(directoryName + "\\XMLFiles\\" + fileName + ".xml");
-                    foreach (XmlNode item in xmlDocument.SelectNodes(rootNode))
-                    {
-                        foreach (XmlNode item2 in item.SelectNodes("Company"))
-                        {
-                            string innerText = item2.SelectSingleNode("CompId").InnerText;
-                            if (innerText == compId)
-                            {
-                                serverDetail.ServerName = item2.SelectSingleNode("ServerName").InnerText;
-                                serverDetail.password = item2.SelectSingleNode("Password").InnerText;
-                                serverDetail.DatabaseName = item2.SelectSingleNode("DatabaseName").InnerText;
-                                serverDetail.UserID = item2.SelectSingleNode("UserID").InnerText;
-                                return serverDetail;
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception err)
-            {
-                // ErrLog(err, "GetCompanyServerDetails ");
-            }
-
-            return serverDetail;
-        }
         #endregion
     }
 }
