@@ -28,23 +28,23 @@ namespace ExtModule.API.Controllers
             _repositoryERP = eRPRepository;
        
         }
-        #region Test
-        [HttpGet]
-        [Route("api/Data")]
-        public string[] Get()
-        {
-            string filename = "test";
-             string[] Summaries = new[]
-        {
-            "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-        };
-            Logger.Instance.LogInfo(filename, "entered");
-            return Summaries;
-        }
-        #endregion
+       
 
         #region GetDataTableByStoredProcedure
+        /// <summary>
+        /// Executes the specified stored procedure and returns the result as a DataTable.
+        /// </summary>
+        /// <param name="obj">The input parameters required to execute the stored procedure.</param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when the value is "ERP", the request is routed through the ERP-specific repository
+        /// to execute the stored procedure against the ERP database.
+        /// </param>
+
+        /// <returns>An IActionResult containing the stored procedure execution result.</returns>
         [HttpPost]
+
         [Authorize]
         [Route("api/{type}/Data/GetDataBySp")]
         public async Task<IActionResult> GetDataTableByStoredProcedure(DbCallStoredProcedureInput obj, string type)
@@ -77,6 +77,18 @@ namespace ExtModule.API.Controllers
         #endregion
 
         #region GetDataTableListByStoredProcedure
+        /// <summary>
+        /// Executes the specified stored procedure and returns the result as a Dataset.
+        /// </summary>
+        /// <param name="obj">The input parameters required to execute the stored procedure.</param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when the value is "ERP", the request is routed through the ERP-specific repository
+        /// to execute the stored procedure against the ERP database.
+        /// </param>
+        /// <returns>An IActionResult containing the stored procedure execution result.</returns>
+
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetDataTableListBySp")]
@@ -109,6 +121,17 @@ namespace ExtModule.API.Controllers
 
         #endregion
         #region GetDataTableByView
+        /// <summary>
+        /// Executes the specified view and returns the result as a datatable.
+        /// </summary>
+        /// <param name="obj">The input parameters required to execute the view.</param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when the value is "ERP", the request is routed through the ERP-specific repository
+        /// to execute the stored procedure against the ERP database.
+        /// </param>
+        /// <returns>An IActionResult containing the view execution result.</returns>
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetDataByView")]
@@ -140,7 +163,24 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-        #region GetDataTableByStoredProcedure
+        #region GetDataBySpPageBreak
+        /// <summary>
+        /// Executes the specified stored procedure and returns a paged result set
+        /// based on the provided page number and page size.
+        /// </summary>
+        /// <param name="obj">
+        /// The input payload containing the stored procedure name, parameters,
+        /// page number, and page size used to retrieve a specific segment of data.
+        /// </param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.
+        /// This value determines which repository or data source is used internally.
+        /// For example, when set to "ERP", the stored procedure is executed against
+        /// the ERP database through the ERP-specific repository.
+        /// </param>
+        /// <returns>
+        /// An IActionResult containing the paged data returned by the stored procedure.
+        /// </returns>
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetDataBySpPageBreak")]
@@ -172,7 +212,19 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-        #region GetScalarBySP
+     
+        #region GetDataTableByView
+        /// <summary>
+        /// Executes the specified stored procedure and returns the result as a string value.
+        /// </summary>
+        /// <param name="obj">The input parameters required to execute the stored procedure.</param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when the value is "ERP", the request is routed through the ERP-specific repository
+        /// to execute the stored procedure against the ERP database.
+        /// </param>
+        /// <returns>An IActionResult containing the stored procedure execution result.</returns>
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetScalarBySP")]
@@ -205,7 +257,17 @@ namespace ExtModule.API.Controllers
         #endregion
 
         #region GetMasterData
-        //uses mcore view
+        /// <summary>
+        /// Returns a datatable of master data for the master type id passed.
+        /// </summary>
+        /// <param name="obj">The input parameters required to retrieve the master data.</param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when the value is "ERP", the request is routed through the ERP-specific repository
+        /// to execute the stored procedure against the ERP database.
+        /// </param>
+        /// <returns>An IActionResult containing the result.</returns>
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetMasterData")]
@@ -237,74 +299,25 @@ namespace ExtModule.API.Controllers
 
         #endregion
 
-        #region GetMasterData
-        //uses vmcore view
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/GetMasterData_M")]
-        public async Task<IActionResult> GetMasterData_M(DbCallMasterInput obj, string type)
-        {
-            var objRes = new APIResponse<DataTable>();
-
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetMasterData_MAsync(obj.MasterTypeId, obj.Columns, obj.Condition, obj.CompId, obj.Ordercolumn);
-
-                    objRes.data = dt;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return Ok(objRes);
-
-        }
-
-        #endregion
-    
-        #region GetDataScalarByFunction
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/GetScalarDataByFunc")]
-        public async Task<IActionResult> GetScalarDataByFunc(DbCallScalarFunctionInput obj, string type)
-        {
-            var objRes = new APIResponse<string>();
-            string fileName = type + "_" + obj.CompId;
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    string val = await repository.GetScalarByFuncAsync(obj.FuncName, obj.CompId);
-
-                    objRes.data = val;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogError(fileName, ex.InnerException.Message, ex);
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return Ok(objRes);
-
-        }
-
-        #endregion
-      
 
         #region AddData
+        /// <summary>
+        /// Adds the single row to table based on the input passed
+        /// </summary>
+        /// <param name="obj">Includes the tablename,compid,and collection of column name and value</param>
+        ///<param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when the value is "ERP", the request is routed through the ERP-specific repository
+        /// to execute the stored procedure against the ERP database.
+        /// </param>
+        /// <returns>
+        /// An <see cref="APIResponse{T}"/> containing:
+        /// - <c>status</c>: the success or failure code of the insert operation  
+        /// - <c>sMessage</c>: a descriptive message about the result  
+        /// - <c>data</c>: an integer representing the ID or affected row count returned by the insert  
+        /// </returns>
+
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/AddData")]
@@ -336,6 +349,31 @@ namespace ExtModule.API.Controllers
 
         #endregion
         #region UpdateData
+        /// <summary>
+        /// Updates an existing record in the specified module or data domain
+        /// using the provided table name, parameters, and update condition.
+        /// </summary>
+        /// <param name="obj">
+        /// The input payload containing the table name, company identifier,
+        /// key–value parameters to update, and the condition used to identify
+        /// the target record(s).  
+        /// - <c>sTableName</c>: The name of the table to update  
+        /// - <c>CompId</c>: The company or tenant identifier  
+        /// - <c>Param</c>: A hashtable of column names and their new values  
+        /// - <c>Condition</c>: The WHERE clause or filter determining which rows to update  
+        /// </param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when set to <c>"ERP"</c>, the update operation is executed
+        /// against the ERP database through the ERP-specific repository.
+        /// </param>
+        /// <returns>
+        /// An <see cref="APIResponse{T}"/> containing:  
+        /// - <c>status</c>: the success or failure code of the update operation  
+        /// - <c>sMessage</c>: a descriptive message about the result  
+        /// - <c>data</c>: an integer representing the number of affected rows  
+        /// </returns>
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/UpdateData")]
@@ -367,6 +405,30 @@ namespace ExtModule.API.Controllers
 
         #endregion
         #region DeleteData
+        /// <summary>
+        /// Delete an existing record in the specified module or data domain
+        /// using the provided table name, parameters, and update condition.
+        /// </summary>
+        /// <param name="obj">
+        /// The input payload containing the table name, company identifier,
+        /// to delete, and the condition used to identify
+        /// the target record(s).  
+        /// - <c>sTableName</c>: The name of the table to update  
+        /// - <c>CompId</c>: The company or tenant identifier  
+        /// - <c>Condition</c>: The WHERE clause or filter determining which rows to update  
+        /// </param>
+        /// <param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when set to <c>"ERP"</c>, the update operation is executed
+        /// against the ERP database through the ERP-specific repository.
+        /// </param>
+        /// <returns>
+        /// An <see cref="APIResponse{T}"/> containing:  
+        /// - <c>status</c>: the success or failure code of the update operation  
+        /// - <c>sMessage</c>: a descriptive message about the result  
+        /// - <c>data</c>: an integer representing the number of affected rows  
+        /// </returns>
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/DeleteData")]
@@ -397,8 +459,24 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-     
+
         #region BulkInsertByTable
+        /// <summary>
+        /// Adds the bulk row to table based on the input passed
+        /// </summary>
+        /// <param name="obj">Includes the tablename,compid,and collection of column name and value</param>
+        ///<param name="type">
+        /// Identifies the functional module or data domain for the request.  
+        /// This value determines which repository or data source is used internally.  
+        /// For example, when the value is "ERP", the request is routed through the ERP-specific repository
+        /// to execute the stored procedure against the ERP database.
+        /// </param>
+        /// <returns>
+        /// An <see cref="APIResponse{T}"/> containing:
+        /// - <c>status</c>: the success or failure code of the insert operation  
+        /// - <c>sMessage</c>: a descriptive message about the result  
+        /// - <c>data</c>: an integer representing the ID or affected row count returned by the insert  
+        /// </returns>
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/BulkInsertByTable")]
@@ -429,73 +507,6 @@ namespace ExtModule.API.Controllers
         }
 
         #endregion
-        #region CreateAndBulkImportTable
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/CreateAndBulkImportTable")]
-        public async Task<APIResponse<string>> CreateAndBulkImportTable(DbCallBulkInputByTable obj, string type)
-        {
-            var objRes = new APIResponse<string>();
-
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    Hashtable res = await (repository.CreateAndBulkInsertToTableAsync(obj.TableName, obj.Params,obj.Coloumns, obj.CompId));
-
-                    objRes.data = res["rows"].ToString();
-                    objRes.status = 1;
-                    objRes.sMessage = res["message"].ToString();
-                }
-                catch (Exception ex)
-                {
-                    
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return objRes;
-
-        }
-
-        #endregion
-
-        #region GetScalar
-        [HttpPost]
-        [Authorize]
-        [Route("api/{type}/Data/GetScalar")]
-        public async Task<IActionResult> GetScalar(DbCallStoredProcedureInput obj, string type)
-        {
-            var objRes = new APIResponse<string>();
-            string fileName = type + "_" + obj.CompId;
-            string conString = "";
-            if (obj != null)
-            {
-                try
-                {
-                    var repository = _repositoryFactory.CreateRepository(type);
-                    string res = await repository.GetScalarByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
-
-                    objRes.data = res;
-                    objRes.status = 1;
-                    objRes.sMessage = "success";
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.LogError(fileName, ex.Message, ex);
-                    objRes.status = 0;
-                    objRes.sMessage = ex.Message;
-                }
-            }
-            return Ok(objRes);
-
-        }
-
-        #endregion
       
-
-
     }
 }

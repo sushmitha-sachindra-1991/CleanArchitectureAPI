@@ -8,7 +8,7 @@ namespace ExtModule.API.Model
         public MappingProfile()
         {
             // Example: Mapping between DTO and Entity classes
-            CreateMap<loginRes, Loginresponse>(); 
+            CreateMap<LoginRes, Loginresponse>(); 
           
         }
     }

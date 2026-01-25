@@ -27,7 +27,11 @@ namespace ExtModule.API.Controllers
             _ERPRepository = eRPRepository;
             _mapper = mapper;
         }
-
+        /// <summary>
+        /// Validates the user details passed
+        /// </summary>
+        /// <param name="userLogin"></param>
+        /// <returns></returns>
         [HttpPost("LoginBySession")]
         public async Task<IActionResult> LoginBySession([FromBody] UserLoginDto userLogin)
         {
@@ -36,12 +40,12 @@ namespace ExtModule.API.Controllers
             //var obj= (await _ERPRepository.validateFocusSessionId(userLogin.SessionId,userLogin.CompanyCode, baseFocusAPIUrl));
             var obj = new LoginRes
             {
-                data = null,
-                message = "",
-                result = 1,
-                url = ""
+                Data = null,
+                 Message = "",
+                Result = 1,
+                Url = ""
             };
-            if (obj.result==1)
+            if (obj.Result==1)
             {                
                     var token = _tokenService.GenerateToken(userLogin.SessionId, _configuration["Jwt:Key"], _configuration["Jwt:Issuer"], _configuration["Jwt:Audience"]);
                     var refreshToken = _tokenService.GenerateRefreshToken();

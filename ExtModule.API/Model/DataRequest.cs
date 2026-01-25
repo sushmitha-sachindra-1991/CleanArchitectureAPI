@@ -68,6 +68,10 @@ namespace ExtModule.API.Model.DataRequest
         public string CompId { get; set; }
       
     }
+    /// <summary>
+    /// Represents the input required to retrieve or manage item images
+    /// associated with a specific product .
+    /// </summary>
     public class DbCallItemImage
     {
         public int iProductId { get; set; }
