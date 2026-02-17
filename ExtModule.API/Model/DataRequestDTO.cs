@@ -5,13 +5,13 @@ using System.Text.Json.Serialization;
 namespace ExtModule.API.Model.DataRequest
 {
     
-    public class DbCallStoredProcedureInput
+    public class DbCallStoredProcedureInputDTO
     {
         public string SPName { get; set; }
         public string CompId { get; set; }              
         public Hashtable Param { get; set; }
     }
-    public class DbCallViewInput
+    public class DbCallViewInputDTO
     {
         public string ViewName { get; set; }
         public string[] Columns { get; set; }//coulm seperated by comma 
@@ -19,14 +19,14 @@ namespace ExtModule.API.Model.DataRequest
         public string CompId { get; set; }
         public string[]? Ordercolumn { get; set; } = default;
     }
-    public class DbCallScalarFunctionInput
+    public class DbCallScalarFunctionInputDTO
     {
         public string FuncName { get; set; }
        
         public string CompId { get; set; }
        
     }
-    public class DbCallTableFunctionInput
+    public class DbCallTableFunctionInputDTO
     {
         public string FuncName { get; set; }
         public string[] Columns { get; set; }//coulm seperated by comma
@@ -34,27 +34,27 @@ namespace ExtModule.API.Model.DataRequest
         public string CompId { get; set; }
 
     }
-    public class DbCallAddToTableInput
+    public class DbCallAddToTableInputDTO
     {
         public string sTableName { get; set; }
         public string CompId { get; set; }
         public Hashtable Param { get; set; }
     }
-    public class DbCallUpdateToTableInput
+    public class DbCallUpdateToTableInputDTO
     {
         public string sTableName { get; set; }
         public string CompId { get; set; }
         public Hashtable Param { get; set; }
         public string Condition { get; set; }
     }
-    public class DbCallDeleteTableInput
+    public class DbCallDeleteTableInputDTO
     {
         public string sTableName { get; set; }
         public string CompId { get; set; }
        
         public string Condition { get; set; }
     }
-    public class DbCallStoredProcedureInputByPage
+    public class DbCallStoredProcedureInputByPageDTO
     {
         public string SPName { get; set; }
         public string CompId { get; set; }
@@ -62,7 +62,7 @@ namespace ExtModule.API.Model.DataRequest
         public  int PageNumber {  get; set; }
         public int PageSize {  get; set; }
     }
-    public class DbCallDateFormatInput
+    public class DbCallDateFormatInputDTO
     {
         public string date { get; set; }
         public string CompId { get; set; }
@@ -78,7 +78,7 @@ namespace ExtModule.API.Model.DataRequest
         public string compId { get; set; }
 
     }
-    public class DbCallMasterInput
+    public class DbCallMasterInputDTO
     {
         public int MasterTypeId { get; set; }
         public string[] Columns { get; set; }//coulm seperated by comma
@@ -93,7 +93,7 @@ namespace ExtModule.API.Model.DataRequest
         public string CompId { get; set; }
         public List<Hashtable> Params { get; set; }
     }
-    public class DbCallBulkInputByTable
+    public class DbCallBulkInputByTableDTO
     {
         public string? TableName { get; set; } = default;
         public string CompId { get; set; }

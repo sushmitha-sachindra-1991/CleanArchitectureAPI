@@ -19,7 +19,7 @@ using System.Xml.Linq;
 using static ExtModule.API.Core.ERP.F8API;
 
 using ExtModule.API.Logging;
-using ExtModule.API.Core;
+using ExtModule.API.Infra.Exceptions;
 using Newtonsoft.Json;
 
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -29,6 +29,7 @@ using static ExtModule.API.Core.CRM;
 using System.Xml;
 using Focus.TranSettings.DataStructs;
 using static System.Net.Mime.MediaTypeNames;
+using ExtModule.API.Core;
 
 namespace ExtModule.API.Infrastructure.Repositories
 {
@@ -36,21 +37,21 @@ namespace ExtModule.API.Infrastructure.Repositories
     {
         string ErrLogName = "Error";
         string InfoLogName = "Info";
-        public async Task<DataTable> GetDataTableByStoredProcedureAsync(string spName, Hashtable paramList, string compId)
+        public async Task<DataTable> GetDataTableByStoredProcedureAsync(DbCallStoredProcedureInput obj)
         {
             var dt = new DataTable();
-            string conString = GetConnectionString(compId);                    
+            string conString = GetConnectionString(obj.CompId);                    
             try
             {
                 Logger.Instance.LogInfo("Info","Opening connection");
 
                 using (SqlConnection con = new SqlConnection(conString))
                 {                    
-                    SqlCommand cmd = new SqlCommand(spName, con);
-                    Logger.Instance.LogInfo("Info", "Sp Name  "+spName);
-                    if (paramList != null)
+                    SqlCommand cmd = new SqlCommand(obj.SPName, con);
+                    Logger.Instance.LogInfo("Info", "Sp Name  "+obj.SPName);
+                    if (obj.Param != null)
                     {
-                        foreach (DictionaryEntry s in paramList)
+                        foreach (DictionaryEntry s in obj.Param)
                         {
                             cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
                             Logger.Instance.LogInfo("Info", "Key  " + s.Key+" Value "+s.Value.ToString());
@@ -73,27 +74,27 @@ namespace ExtModule.API.Infrastructure.Repositories
             catch (Exception ex)
             {
                 Logger.Instance.LogError("Error", "GetDataTableByStoredProcedure", ex);
-                throw new CustomException("GetDataTableByStoredProcedure",ex);
+                throw new Infra.Exceptions.CustomException("GetDataTableByStoredProcedure",ex);
                
             }
            
             return dt;
         }
 
-        public async Task<List<DataTable>> GetMultipleResultSetsBySPAsync(string spName, Hashtable paramList, string compId)
+        public async Task<List<DataTable>> GetMultipleResultSetsBySPAsync(DbCallStoredProcedureInput obj)
         {
             var resultTables = new List<DataTable>();
-            string conString = GetConnectionString(compId);
+            string conString = GetConnectionString(obj.CompId);
 
             try
             {
                 using (SqlConnection con = new SqlConnection(conString))
                 {
-                    using (SqlCommand cmd = new SqlCommand(spName, con))
+                    using (SqlCommand cmd = new SqlCommand(obj.SPName, con))
                     {
-                        if (paramList != null)
+                        if (obj.Param != null)
                         {
-                            foreach (DictionaryEntry s in paramList)
+                            foreach (DictionaryEntry s in obj.Param)
                             {
                                 cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
                             }
@@ -117,7 +118,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("GetMultipleResultSets", ex);
+                throw new Infra.Exceptions.CustomException("GetMultipleResultSets", ex);
             }
 
             return resultTables;
@@ -155,24 +156,24 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("GetDataSetByStoredProcedureAsync", ex);
+                throw new Infra.Exceptions.CustomException("GetDataSetByStoredProcedureAsync", ex);
             }
             
             return ds;
         }
-        public async Task<string> GetScalarByStoredProcedureAsync(string spName, Hashtable paramList, string compId)
+        public async Task<string> GetScalarByStoredProcedureAsync(DbCallStoredProcedureInput obj)
         {
             string retVal= "" ;
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
           
             try
             {
                 using (SqlConnection con = new SqlConnection(connStr))
                 {
-                    SqlCommand sqlCommand = new SqlCommand(spName, con);
-                    if (paramList != null)
+                    SqlCommand sqlCommand = new SqlCommand(obj.SPName, con);
+                    if (obj.Param != null)
                     {
-                        foreach (DictionaryEntry Param in paramList)
+                        foreach (DictionaryEntry Param in obj.Param)
                         {
                             sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
                         }
@@ -188,7 +189,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("GetScalarByStoredProcedureAsync", ex);
+                throw new Infra.Exceptions.CustomException("GetScalarByStoredProcedureAsync", ex);
             }
            
             return retVal;
@@ -235,33 +236,33 @@ namespace ExtModule.API.Infrastructure.Repositories
     }
     catch (Exception ex)
     {
-        throw new CustomException("GetDataTableByViewAsync", ex);
+        throw new Infra.Exceptions.CustomException("GetDataTableByViewAsync", ex);
     }
 
     return dt;
 }
        
-        public async Task<DataTable> GetMasterDataAsync(int iMasterTypeId, string[] columnList, string condition, string compId, string[] orderColoumns)
+        public async Task<DataTable> GetMasterDataAsync(DbCallMasterInput obj)
         {
             var dt = new DataTable();
-            string conString = GetConnectionString(compId);
+            string conString = GetConnectionString(obj.CompId);
             Logger.Instance.LogInfo("Info",conString);
            
             try
             {
                
-                    string text = "Select " + string.Join(",", columnList) + " From " + GetTableNameOfTag(iMasterTypeId, compId, conString) + " Where iStatus <> 5 and sCode <>'' ";
-                    if (!string.IsNullOrEmpty(condition))
+                    string text = "Select " + string.Join(",", obj.Columns) + " From " + GetTableNameOfTag(obj.MasterTypeId, obj.CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
+                    if (!string.IsNullOrEmpty(obj.Condition))
                     {
-                        text = text + " and " + condition;
+                        text = text + " and " + obj.Condition;
                     }
-                    if (orderColoumns != null)
+                    if (obj.Ordercolumn != null)
                     {
-                        text = text + " order by " + string.Join(",", orderColoumns);
+                        text = text + " order by " + string.Join(",", obj.Ordercolumn);
                     }
                     Logger.Instance.LogInfo("Info", text);
-                    Logger.Instance.LogInfo("Info", compId);
-                    dt = await GetDataTableByQueryAsync(text, compId);
+                    Logger.Instance.LogInfo("Info", obj.CompId);
+                    dt = await GetDataTableByQueryAsync(text, obj.CompId);
                     if (dt.Rows.Count > 0)
                     {
                         return dt;
@@ -271,7 +272,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             catch (Exception ex)
             {
                 Logger.Instance.LogError(ErrLogName, "GetMasterDataAsync", ex);
-                throw new CustomException("GetMasterDataAsync", ex);
+                throw new Infra.Exceptions.CustomException("GetMasterDataAsync", ex);
             }
            
             return dt;
@@ -303,7 +304,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("GetMasterData_MAsync", ex);
+                throw new Infra.Exceptions.CustomException("GetMasterData_MAsync", ex);
             }
             
             return dt;
@@ -326,10 +327,10 @@ namespace ExtModule.API.Infrastructure.Repositories
             return result;
         }
              
-        public async Task<string> BulkInsertToTableAsync(string tableName, List<Hashtable> lstParams, string compId)
+        public async Task<string> BulkInsertToTableAsync(DbCallBulkInputByTable obj)
         {
             string retVal = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
           
             try
             {
@@ -338,12 +339,12 @@ namespace ExtModule.API.Infrastructure.Repositories
                 {
                     List<string> coulumnNames = new List<string>();
                 List<string> values = new List<string>();
-                    if (lstParams != null)
+                    if (obj.Params != null)
                     {
 
-                        foreach (Hashtable obj in lstParams)
+                        foreach (Hashtable _obj in obj.Params)
                         {
-                            foreach (DictionaryEntry Param in obj)
+                            foreach (DictionaryEntry Param in _obj)
                             {
                                 if (Param.Value != null)
                                 {
@@ -355,7 +356,7 @@ namespace ExtModule.API.Infrastructure.Repositories
                                 }
                             }
                             //insert
-                            query = @"insert into " + tableName;
+                            query = @"insert into " + obj.TableName;
                             string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
                             query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
                             SqlCommand sqlCommand = new SqlCommand(query, con);
@@ -374,7 +375,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("BulkInsertToTableAsync", ex);
+                throw new Infra.Exceptions.CustomException("BulkInsertToTableAsync", ex);
             }
             
             return retVal;
@@ -467,15 +468,15 @@ namespace ExtModule.API.Infrastructure.Repositories
             catch (Exception ex)
             {
                 Logger.Instance.LogError("error", ex.InnerException.Message, ex);
-                throw new CustomException("CreateAndBulkInsertToTableAsync", ex);
+                throw new Infra.Exceptions.CustomException("CreateAndBulkInsertToTableAsync", ex);
             }
           
             return retval;
         }
-        public async Task<string> InsertToTableAsync(string tableName, Hashtable paramList, string compId)
+        public async Task<string> InsertToTableAsync(DbCallAddToTableInput obj)
         {
             string retval = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
            
             try
             {
@@ -485,11 +486,11 @@ namespace ExtModule.API.Infrastructure.Repositories
 
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
-                    if (paramList != null)
+                    if (obj.Param != null)
                     {
 
 
-                        foreach (DictionaryEntry Param in paramList)
+                        foreach (DictionaryEntry Param in obj.Param)
                         {
                             if (Param.Value != null)
                             {
@@ -499,7 +500,7 @@ namespace ExtModule.API.Infrastructure.Repositories
                             }
                         }
                         //insert
-                        query = @"insert into " + tableName;
+                        query = @"insert into " + obj.sTableName;
                         string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
                         query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
                         SqlCommand sqlCommand = new SqlCommand(query, con);
@@ -515,16 +516,16 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("InsertToTableAsync", ex);
+                throw new Infra.Exceptions.CustomException("InsertToTableAsync", ex);
             }
            
             return retval;
         }
 
-        public async Task<string> UpdateTableAsync(string tableName, Hashtable paramList,string condition, string compId)
+        public async Task<string> UpdateTableAsync(DbCallUpdateToTableInput obj)
         {
             string retval = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
             
             try
             {
@@ -534,12 +535,12 @@ namespace ExtModule.API.Infrastructure.Repositories
 
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
-                    if (paramList != null)
+                    if (obj.Param != null)
                     {
 
-                        query = query + "update " + tableName + " set ";
+                        query = query + "update " + obj.sTableName + " set ";
                         string valueList = "";
-                        foreach (DictionaryEntry Param in paramList)
+                        foreach (DictionaryEntry Param in obj.Param)
                         {
                             if (Param.Value != null)
                             {
@@ -549,7 +550,7 @@ namespace ExtModule.API.Infrastructure.Repositories
                         }
                         valueList = valueList.TrimEnd(',');
 
-                        query = query + valueList + " where 1=1 and " + condition;
+                        query = query + valueList + " where 1=1 and " + obj.Condition;
                         SqlCommand sqlCommand = new SqlCommand(query, con);
 
                         sqlCommand.CommandType = CommandType.Text;
@@ -564,15 +565,15 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("UpdateTableAsync", ex);
+                throw new Infra.Exceptions.CustomException("UpdateTableAsync", ex);
             }
             
             return retval;
         }
-        public async Task<string> DeleteRowFromTableAsync(string tableName, string condition, string compId)
+        public async Task<string> DeleteRowFromTableAsync(DbCallDeleteTableInput obj)
         {
             string retval = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
           
             try
             {
@@ -582,13 +583,13 @@ namespace ExtModule.API.Infrastructure.Repositories
 
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
-                    if (!string.IsNullOrEmpty(tableName))
+                    if (!string.IsNullOrEmpty(obj.sTableName))
                     {
 
                         //delete
-                        query = @"delete  " + tableName;
+                        query = @"delete  " + obj.sTableName;
 
-                        query = query + " where " + condition;
+                        query = query + " where " + obj.Condition;
                         SqlCommand sqlCommand = new SqlCommand(query, con);
 
                         sqlCommand.CommandType = CommandType.Text;
@@ -602,7 +603,7 @@ namespace ExtModule.API.Infrastructure.Repositories
             }
             catch (Exception ex)
             {
-                throw new CustomException("DeleteRowFromTableAsync", ex);
+                throw new Infra.Exceptions.CustomException("DeleteRowFromTableAsync", ex);
             }
            
             return retval;

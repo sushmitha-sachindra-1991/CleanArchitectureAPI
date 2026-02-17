@@ -1,16 +1,14 @@
-﻿using AutoMapper;
-using static ExtModule.API.Core.ERP.F8API;
+using AutoMapper;
+using ExtModule.API.Model.DataRequest;
+using ExtModule.API.Core;
 
-namespace ExtModule.API.Model
+public class AutoMapperProfile : Profile
 {
-    public class MappingProfile : Profile
+    public AutoMapperProfile()
     {
-        public MappingProfile()
-        {
-            // Example: Mapping between DTO and Entity classes
-            CreateMap<LoginRes, Loginresponse>(); 
-          
-        }
+        CreateMap<DbCallStoredProcedureInput, DbCallStoredProcedureInputDTO>();
+        CreateMap<DbCallStoredProcedureInput, DbCallStoredProcedureInputDTO>();
+        CreateMap<DbCallMasterInputDTO, DbCallMasterInput>();
+        CreateMap<DbCallViewInput, DbCallViewInputDTO>();
     }
-       
 }

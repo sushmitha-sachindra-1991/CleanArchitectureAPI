@@ -1,26 +1,28 @@
-
-using ExtModule.API.Application.Factory;
-using ExtModule.API.Application.Interfaces;
-using ExtModule.API.Core;
 using ExtModule.API.Infrastructure;
-using ExtModule.API.Infrastructure.Repositories;
 using Microsoft.OpenApi.Models;
-using Microsoft.Extensions.Configuration;
 using System.Reflection;
 using log4net.Config;
 using log4net;
 using ExtModule.API;
-using System.Text.Json;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
-
 using AutoMapper;
-using System.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 var configuration = builder.Configuration;
+
+//add AutoMapper
+builder.Services.AddAutoMapper(cfg =>
+{
+    cfg.AddProfile<AutoMapperProfile>();
+});
+
 //add authentication
 builder.Services.AddAuthentication(options =>
 {
@@ -71,8 +73,7 @@ XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
 //Injecting services from infrastructure.
 builder.Services.RegisterServices();
 
-//add dto class mapper
-builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+
 
 
 builder.Services.AddEndpointsApiExplorer();

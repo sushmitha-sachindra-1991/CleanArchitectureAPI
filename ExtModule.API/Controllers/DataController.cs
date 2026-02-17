@@ -12,6 +12,7 @@ using log4net.Config;
 using System.Reflection;
 using Microsoft.AspNetCore.Authorization;
 using ExtModule.API.Application.Interfaces;
+using AutoMapper;
 
 
 
@@ -22,10 +23,12 @@ namespace ExtModule.API.Controllers
     {
         private readonly IRepositoryFactory _repositoryFactory;
         private readonly IERPRepository _repositoryERP;
-        public DataController(IRepositoryFactory repositoryFactory,IERPRepository eRPRepository)
+        private readonly IMapper _mapper;
+        public DataController(IRepositoryFactory repositoryFactory,IERPRepository eRPRepository,IMapper mapper)
         {
             _repositoryFactory = repositoryFactory;
             _repositoryERP = eRPRepository;
+            _mapper=mapper;
        
         }
        
@@ -47,17 +50,18 @@ namespace ExtModule.API.Controllers
 
         [Authorize]
         [Route("api/{type}/Data/GetDataBySp")]
-        public async Task<IActionResult> GetDataTableByStoredProcedure(DbCallStoredProcedureInput obj, string type)
+        public async Task<IActionResult> GetDataTableByStoredProcedure(DbCallStoredProcedureInputDTO objDTO, string type)
         {
             var objRes = new APIResponse<DataTable>();
-          string fileName= type + "_"+obj.CompId;
+          string fileName= type + "_"+ objDTO.CompId;
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {                    
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetDataTableByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
+                    DbCallStoredProcedureInput obj=_mapper.Map<DbCallStoredProcedureInput>(objDTO);
+                    DataTable dt = await repository.GetDataTableByStoredProcedureAsync(obj);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -92,17 +96,18 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetDataTableListBySp")]
-        public async Task<IActionResult> GetDataTableListBySp(DbCallStoredProcedureInput obj, string type)
+        public async Task<IActionResult> GetDataTableListBySp(DbCallStoredProcedureInput objDTO, string type)
         {
             var objRes = new APIResponse<List<DataTable>>();
-            string fileName = type + "_" + obj.CompId;
+            string fileName = type + "_" + objDTO.CompId;
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    List<DataTable> dt = await repository.GetMultipleResultSetsBySPAsync(obj.SPName, obj.Param, obj.CompId);
+                    DbCallStoredProcedureInput obj = _mapper.Map<DbCallStoredProcedureInput>(objDTO);
+                    List<DataTable> dt = await repository.GetMultipleResultSetsBySPAsync(obj);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -184,17 +189,23 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetDataBySpPageBreak")]
-        public async Task<IActionResult> GetDataBySpPageBreak(DbCallStoredProcedureInputByPage obj, string type)
+        public async Task<IActionResult> GetDataBySpPageBreak(DbCallStoredProcedureInputByPageDTO objDTO, string type)
         {
             var objRes = new APIResponse<DataTable>();
-            string fileName = type + "_" + obj.CompId;
+            string fileName = type + "_" + objDTO.CompId;
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetDataTableByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
+                    DbCallStoredProcedureInput obj = new DbCallStoredProcedureInput
+                    {
+                        Param = objDTO.Param,
+                        CompId = objDTO.CompId,
+                        SPName = objDTO.SPName,
+                    };
+                    DataTable dt = await repository.GetDataTableByStoredProcedureAsync(obj);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -228,17 +239,18 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetScalarBySP")]
-        public async Task<APIResponse<string>> GetScalarBySP(DbCallStoredProcedureInput obj, string type)
+        public async Task<APIResponse<string>> GetScalarBySP(DbCallStoredProcedureInputDTO objDTO, string type)
         {
             var objRes = new APIResponse<string>();
 
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string val = await repository.GetScalarByStoredProcedureAsync(obj.SPName, obj.Param, obj.CompId);
+                    DbCallStoredProcedureInput obj = _mapper.Map<DbCallStoredProcedureInput>(objDTO);
+                    string val = await repository.GetScalarByStoredProcedureAsync(obj);
 
                     objRes.data = val;
                     objRes.status = 1;
@@ -271,17 +283,18 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/GetMasterData")]
-        public async Task<IActionResult> GetMasterData(DbCallMasterInput obj, string type)
+        public async Task<IActionResult> GetMasterData(DbCallMasterInputDTO objDTO, string type)
         {
             var objRes = new APIResponse<DataTable>();
 
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    DataTable dt = await repository.GetMasterDataAsync(obj.MasterTypeId,obj.Columns,obj.Condition, obj.CompId,obj.Ordercolumn);
+                    DbCallMasterInput obj=_mapper.Map< DbCallMasterInput>(objDTO);
+                    DataTable dt = await repository.GetMasterDataAsync(obj);
 
                     objRes.data = dt;
                     objRes.status = 1;
@@ -321,17 +334,18 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/AddData")]
-        public async Task<APIResponse<int>> AddData(DbCallAddToTableInput obj, string type)
+        public async Task<APIResponse<int>> AddData(DbCallAddToTableInputDTO objDTO, string type)
         {
             var objRes = new APIResponse<int>();
 
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.InsertToTableAsync(obj.sTableName, obj.Param, obj.CompId));
+                    DbCallAddToTableInput obj = _mapper.Map<DbCallAddToTableInput>(objDTO);
+                    string rows = await (repository.InsertToTableAsync(obj));
 
                     objRes.data = int.Parse(rows);
                     objRes.status = 1;
@@ -377,17 +391,18 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/UpdateData")]
-        public async Task<APIResponse<int>> UpdateData(DbCallUpdateToTableInput obj, string type)
+        public async Task<APIResponse<int>> UpdateData(DbCallUpdateToTableInputDTO objDTO, string type)
         {
             var objRes = new APIResponse<int>();
 
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.UpdateTableAsync (obj.sTableName, obj.Param,obj.Condition, obj.CompId));
+                    DbCallUpdateToTableInput obj=_mapper.Map<DbCallUpdateToTableInput>(objDTO);
+                    string rows = await (repository.UpdateTableAsync (obj));
 
                     objRes.data = int.Parse(rows);
                     objRes.status = 1;
@@ -432,17 +447,18 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/DeleteData")]
-        public async Task<APIResponse<int>> DeleteData(DbCallDeleteTableInput obj, string type)
+        public async Task<APIResponse<int>> DeleteData(DbCallDeleteTableInputDTO objDTO, string type)
         {
             var objRes = new APIResponse<int>();
 
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.DeleteRowFromTableAsync(obj.sTableName, obj.Condition, obj.CompId));
+                    DbCallDeleteTableInput obj=_mapper.Map<DbCallDeleteTableInput>(objDTO);
+                    string rows = await (repository.DeleteRowFromTableAsync(obj));
 
                     objRes.data = int.Parse(rows);
                     objRes.status = 1;
@@ -480,17 +496,18 @@ namespace ExtModule.API.Controllers
         [HttpPost]
         [Authorize]
         [Route("api/{type}/Data/BulkInsertByTable")]
-        public async Task<APIResponse<string>> BulkInsertByTable(DbCallBulkInputByTable obj, string type)
+        public async Task<APIResponse<string>> BulkInsertByTable(DbCallBulkInputByTableDTO objDTO, string type)
         {
             var objRes = new APIResponse<string>();
 
             string conString = "";
-            if (obj != null)
+            if (objDTO != null)
             {
                 try
                 {
                     var repository = _repositoryFactory.CreateRepository(type);
-                    string rows = await (repository.BulkInsertToTableAsync (obj.TableName, obj.Params, obj.CompId));
+                    DbCallBulkInputByTable obj = _mapper.Map<DbCallBulkInputByTable>(objDTO);
+                    string rows = await (repository.BulkInsertToTableAsync (obj));
 
                     objRes.data = rows;
                     objRes.status = 1;

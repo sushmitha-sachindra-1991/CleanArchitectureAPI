@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ExtModule.API.Core
+namespace ExtModule.API.Core_
 {
     public class CustomException :Exception
     {

@@ -15,7 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ExtModule.API.App\ExtModule.API.App.csproj" />
-    <ProjectReference Include="..\ExtModule.API.Core\ExtModule.API.Core.csproj" />
+    <ProjectReference Include="..\ExtModule.API.Core_\ExtModule.API.Core.csproj" />
     <ProjectReference Include="..\ExtModule.API.Logging\ExtModule.API.Logging.csproj" />
   </ItemGroup>
 

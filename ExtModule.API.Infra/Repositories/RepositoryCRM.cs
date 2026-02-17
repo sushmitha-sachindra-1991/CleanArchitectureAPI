@@ -24,19 +24,19 @@ namespace ExtModule.API.Infrastructure.Repositories
     {
         string ErrLogName = "Error";
        
-        public async Task<DataTable> GetDataTableByStoredProcedureAsync(string spName, Hashtable paramList, string compId)
+        public async Task<DataTable> GetDataTableByStoredProcedureAsync(DbCallStoredProcedureInput obj)
         {
             var dt = new DataTable();
-            string conString = GetConnectionString(compId);
+            string conString = GetConnectionString(obj.CompId);
             try
             {
                 Logger.Instance.LogInfo("Info", "Opening connection");
                 using var con=new SqlConnection(conString);
-                using var cmd = new SqlCommand(spName, con);
-                    Logger.Instance.LogInfo("Info", "Sp Name  " + spName);
-                    if (paramList != null)
+                using var cmd = new SqlCommand(obj.SPName, con);
+                    Logger.Instance.LogInfo("Info", "Sp Name  " + obj.SPName);
+                    if (obj.Param != null)
                     {
-                        foreach (DictionaryEntry s in paramList)
+                        foreach (DictionaryEntry s in obj.Param)
                         {
                             cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
                             Logger.Instance.LogInfo("Info", "Key  " + s.Key + " Value " + s.Value.ToString());
@@ -67,19 +67,19 @@ namespace ExtModule.API.Infrastructure.Repositories
             return dt;
         }
 
-        public async Task<List<DataTable>> GetMultipleResultSetsBySPAsync(string spName, Hashtable paramList, string compId)
+        public async Task<List<DataTable>> GetMultipleResultSetsBySPAsync(DbCallStoredProcedureInput obj)
         {
             var resultTables = new List<DataTable>();
-            string conString = GetConnectionString(compId);
+            string conString = GetConnectionString(obj.CompId);
 
             try
             {
                 using var con=new SqlConnection(conString);
-                using var cmd=new SqlCommand(spName, con);
+                using var cmd=new SqlCommand(obj.SPName, con);
                 
-                        if (paramList != null)
+                        if (obj.Param != null)
                         {
-                            foreach (DictionaryEntry s in paramList)
+                            foreach (DictionaryEntry s in obj.Param)
                             {
                                 cmd.Parameters.AddWithValue("@" + s.Key, s.Value.ToString());
                             }
@@ -146,19 +146,19 @@ namespace ExtModule.API.Infrastructure.Repositories
 
             return ds;
         }
-        public async Task<string> GetScalarByStoredProcedureAsync(string spName, Hashtable paramList, string compId)
+        public async Task<string> GetScalarByStoredProcedureAsync(DbCallStoredProcedureInput obj)
         {
             string retVal = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
 
             try
             {
                 using (SqlConnection con = new SqlConnection(connStr))
                 {
-                    SqlCommand sqlCommand = new SqlCommand(spName, con);
-                    if (paramList != null)
+                    SqlCommand sqlCommand = new SqlCommand(obj.SPName, con);
+                    if (obj.Param != null)
                     {
-                        foreach (DictionaryEntry Param in paramList)
+                        foreach (DictionaryEntry Param in obj.Param)
                         {
                             sqlCommand.Parameters.AddWithValue("@" + Param.Key, Param.Value);
                         }
@@ -227,27 +227,27 @@ namespace ExtModule.API.Infrastructure.Repositories
             return dt;
         }
 
-        public async Task<DataTable> GetMasterDataAsync(int iMasterTypeId, string[] columnList, string condition, string compId, string[] orderColoumns)
+        public async Task<DataTable> GetMasterDataAsync(DbCallMasterInput obj)
         {
             DataTable dt;
-            string conString = GetConnectionString(compId);
+            string conString = GetConnectionString(obj.CompId);
             Logger.Instance.LogInfo("Info", conString);
 
             try
             {
-
-                string text = "Select " + string.Join(",", columnList) + " From " + GetTableNameOfTag(iMasterTypeId, compId, conString) + " Where iStatus <> 5 and sCode <>'' ";
-                if (!string.IsNullOrEmpty(condition))
+                string text = "Select " + string.Join(",", obj.Columns) + " From " + GetTableNameOfTag(obj.MasterTypeId, obj.CompId, conString) + " Where iStatus <> 5 and sCode <>'' ";
+                if (!string.IsNullOrEmpty(obj.Condition))
                 {
-                    text = text + " and " + condition;
+                    text = text + " and " + obj.Condition;
                 }
-                if (orderColoumns != null)
+                if (obj.Ordercolumn != null)
                 {
-                    text = text + " order by " + string.Join(",", orderColoumns);
+                    text = text + " order by " + string.Join(",", obj.Ordercolumn);
                 }
                 Logger.Instance.LogInfo("Info", text);
-                Logger.Instance.LogInfo("Info", compId);
-                dt = await GetDataTableByQueryAsync(text, compId);
+                Logger.Instance.LogInfo("Info", obj.CompId);
+         
+                dt = await GetDataTableByQueryAsync(text, obj.CompId);
                 if (dt.Rows.Count > 0)
                 {
                     return dt;
@@ -312,10 +312,10 @@ namespace ExtModule.API.Infrastructure.Repositories
             return result;
         }
 
-        public async Task<string> BulkInsertToTableAsync(string tableName, List<Hashtable> lstParams, string compId)
+        public async Task<string> BulkInsertToTableAsync(DbCallBulkInputByTable obj)
         {
             string retVal = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
 
             try
             {
@@ -324,12 +324,12 @@ namespace ExtModule.API.Infrastructure.Repositories
                 {
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
-                    if (lstParams != null)
+                    if (obj.Params != null)
                     {
 
-                        foreach (Hashtable obj in lstParams)
+                        foreach (Hashtable _obj in obj.Params)
                         {
-                            foreach (DictionaryEntry Param in obj)
+                            foreach (DictionaryEntry Param in _obj)
                             {
                                 if (Param.Value != null)
                                 {
@@ -341,7 +341,7 @@ namespace ExtModule.API.Infrastructure.Repositories
                                 }
                             }
                             //insert
-                            query = @"insert into " + tableName;
+                            query = @"insert into " + obj.TableName;
                             string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
                             query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
                             SqlCommand sqlCommand = new SqlCommand(query, con);
@@ -458,10 +458,10 @@ namespace ExtModule.API.Infrastructure.Repositories
 
             return retval;
         }
-        public async Task<string> InsertToTableAsync(string tableName, Hashtable paramList, string compId)
+        public async Task<string> InsertToTableAsync(DbCallAddToTableInput obj)
         {
             string retval = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
 
             try
             {
@@ -471,11 +471,11 @@ namespace ExtModule.API.Infrastructure.Repositories
 
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
-                    if (paramList != null)
+                    if (obj.Param != null)
                     {
 
 
-                        foreach (DictionaryEntry Param in paramList)
+                        foreach (DictionaryEntry Param in obj.Param)
                         {
                             if (Param.Value != null)
                             {
@@ -485,7 +485,7 @@ namespace ExtModule.API.Infrastructure.Repositories
                             }
                         }
                         //insert
-                        query = @"insert into " + tableName;
+                        query = @"insert into " + obj.sTableName;
                         string valueList = string.Join(", ", values.Select(item => $"'{item}'"));
                         query = query + "(" + string.Join(',', coulumnNames) + ") values (" + valueList + ");SELECT SCOPE_IDENTITY();";
                         SqlCommand sqlCommand = new SqlCommand(query, con);
@@ -507,10 +507,10 @@ namespace ExtModule.API.Infrastructure.Repositories
             return retval;
         }
 
-        public async Task<string> UpdateTableAsync(string tableName, Hashtable paramList, string condition, string compId)
+        public async Task<string> UpdateTableAsync(DbCallUpdateToTableInput obj)
         {
             string retval = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
 
             try
             {
@@ -520,12 +520,12 @@ namespace ExtModule.API.Infrastructure.Repositories
 
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
-                    if (paramList != null)
+                    if (obj.Param != null)
                     {
 
-                        query = query + "update " + tableName + " set ";
+                        query = query + "update " + obj.sTableName + " set ";
                         string valueList = "";
-                        foreach (DictionaryEntry Param in paramList)
+                        foreach (DictionaryEntry Param in obj.Param)
                         {
                             if (Param.Value != null)
                             {
@@ -535,7 +535,7 @@ namespace ExtModule.API.Infrastructure.Repositories
                         }
                         valueList = valueList.TrimEnd(',');
 
-                        query = query + valueList + " where 1=1 and " + condition;
+                        query = query + valueList + " where 1=1 and " + obj.Condition;
                         SqlCommand sqlCommand = new SqlCommand(query, con);
 
                         sqlCommand.CommandType = CommandType.Text;
@@ -555,10 +555,10 @@ namespace ExtModule.API.Infrastructure.Repositories
 
             return retval;
         }
-        public async Task<string> DeleteRowFromTableAsync(string tableName, string condition, string compId)
+        public async Task<string> DeleteRowFromTableAsync(DbCallDeleteTableInput obj )
         {
             string retval = "";
-            string connStr = GetConnectionString(compId);
+            string connStr = GetConnectionString(obj.CompId);
 
             try
             {
@@ -568,13 +568,13 @@ namespace ExtModule.API.Infrastructure.Repositories
 
                     List<string> coulumnNames = new List<string>();
                     List<string> values = new List<string>();
-                    if (!string.IsNullOrEmpty(tableName))
+                    if (!string.IsNullOrEmpty(obj.sTableName))
                     {
 
                         //delete
-                        query = @"delete  " + tableName;
+                        query = @"delete  " + obj.sTableName;
 
-                        query = query + " where " + condition;
+                        query = query + " where " +  obj.Condition   ;
                         SqlCommand sqlCommand = new SqlCommand(query, con);
 
                         sqlCommand.CommandType = CommandType.Text;
